@@ -1,0 +1,26 @@
+# Local frontend artifacts
+node_modules/
+
+dist/
+build/
+
+# Local environment files
+.env
+.env.*
+
+# Deployment/hosting
+.vercel/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE/editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
