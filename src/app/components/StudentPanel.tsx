@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { getAuthUser, getAccessToken, clearAuthSession, updateAuthUser } from "@/lib/auth";
 import { fetchStudentEvolution, updateUserProfile } from "@/lib/api";
 import { toast } from "sonner";
@@ -55,6 +55,7 @@ export function StudentPanel({
   const [evolutionData, setEvolutionData] = useState<any[]>([]);
   const currentTab = activeTabOverride || activeTab;
   const [loadingEvolution, setLoadingEvolution] = useState(false);
+  const hasChildren = children && React.Children.toArray(children).filter(Boolean).length > 0;
 
   // Profile edit
   const user = getAuthUser();
@@ -481,7 +482,7 @@ export function StudentPanel({
 
         {/* Page Content */}
         <main className="flex-1 p-6 md:p-8 max-w-4xl w-full">
-          {children ? children : (
+          {hasChildren ? children : (
             <>
               {activeTab === "home" && renderHome()}
               {activeTab === "evaluation" && (
