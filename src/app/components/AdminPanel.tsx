@@ -3229,114 +3229,140 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
-          <button 
-            onClick={() => { setActiveTab("overview"); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "overview" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-          >
-            <span className="material-symbols-outlined">dashboard</span>
-            <span>Resumen</span>
-          </button>
-          <button 
-            onClick={() => { setActiveTab("analytics"); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "analytics" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-          >
-            <span className="material-symbols-outlined">analytics</span>
-            <span>Analíticas</span>
-          </button>
-          <button 
-            onClick={() => { setActiveTab("reports"); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "reports" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-          >
-            <span className="material-symbols-outlined flex-shrink-0">assignment_ind</span>
-            <span className="whitespace-nowrap">Reportes de Estudiantes</span>
-          </button>
-          <button 
-            onClick={() => { setActiveTab("assigned"); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "assigned" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-          >
-            <span className="material-symbols-outlined">person_search</span>
-            <span>Pacientes Asignados</span>
-          </button>
-          
-          {/* Ocultar pestaña a menos que el rol sea admin */}
-          {getAuthUser()?.rol === "admin" && (
+        <nav className="flex-1 space-y-4 overflow-y-auto pr-1 custom-scrollbar">
+          {/* Sección Clínica */}
+          <div className="space-y-1">
+            <p className="px-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Área Clínica</p>
+            
             <button 
-              onClick={() => { setActiveTab("users"); setIsMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "users" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+              onClick={() => { setActiveTab("overview"); setIsMobileMenuOpen(false); }}
+              className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "overview" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
             >
-              <span className="material-symbols-outlined">manage_accounts</span>
-              <span>Gestión de Usuarios</span>
+              {activeTab === "overview" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+              <span className="material-symbols-outlined">dashboard</span>
+              <span>Resumen</span>
             </button>
-          )}
 
-          <button 
-            onClick={() => { setActiveTab("settings"); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "settings" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-          >
-            <span className="material-symbols-outlined">settings</span>
-            <span>Configuración</span>
-          </button>
-          {getAuthUser()?.rol === "admin" && (
             <button 
-              onClick={() => { setActiveTab("model"); setIsMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "model" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+              onClick={() => { setActiveTab("assigned"); setIsMobileMenuOpen(false); }}
+              className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "assigned" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
             >
-              <span className="material-symbols-outlined">auto_graph</span>
-              <span>Reentrenar Modelo</span>
+              {activeTab === "assigned" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+              <span className="material-symbols-outlined">person_search</span>
+              <span>Pacientes Asignados</span>
             </button>
-          )}
-          {getAuthUser()?.rol === "admin" && (
-            <button
-              id="nav-backups"
-              onClick={() => { setActiveTab("backups"); setIsMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "backups" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-            >
-              <span className="material-symbols-outlined">backup</span>
-              <span>Copias de Seguridad</span>
-            </button>
-          )}
 
-          {/* ─ Extended Feature Tabs (HU0037-HU0045) ─ */}
-          {getAuthUser()?.rol === "admin" && (
-            <>
-              <div className="px-4 pt-3 pb-1">
-                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest">Analítica Avanzada</p>
-              </div>
-              <button
-                id="nav-dashboard"
-                onClick={() => { setActiveTab("dashboard"); setIsMobileMenuOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "dashboard" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+            <button 
+              onClick={() => { setActiveTab("reports"); setIsMobileMenuOpen(false); }}
+              className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "reports" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+            >
+              {activeTab === "reports" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+              <span className="material-symbols-outlined flex-shrink-0">assignment_ind</span>
+              <span className="whitespace-nowrap">Reportes de Estudiantes</span>
+            </button>
+
+            {getAuthUser()?.rol === "admin" && (
+              <button 
+                onClick={() => { setActiveTab("users"); setIsMobileMenuOpen(false); }}
+                className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "users" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
               >
-                <span className="material-symbols-outlined">bar_chart_4_bars</span>
-                <span>Dashboard KPIs</span>
+                {activeTab === "users" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                <span className="material-symbols-outlined">manage_accounts</span>
+                <span>Gestión de Usuarios</span>
               </button>
-              <button
-                id="nav-exports"
-                onClick={() => { setActiveTab("exports"); setIsMobileMenuOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "exports" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-              >
-                <span className="material-symbols-outlined">download</span>
-                <span>Exportar Datos</span>
-              </button>
-              <button
-                id="nav-monitoring"
-                onClick={() => { setActiveTab("monitoring"); setIsMobileMenuOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "monitoring" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-              >
-                <span className="material-symbols-outlined">monitor_heart</span>
-                <span className="whitespace-nowrap">Monitoreo en Vivo</span>
-              </button>
-              <button
-                id="nav-mlaudit"
-                onClick={() => { setActiveTab("mlaudit"); setIsMobileMenuOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "mlaudit" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-              >
-                <span className="material-symbols-outlined">model_training</span>
-                <span>Auditoría ML</span>
-              </button>
-            </>
-          )}
+            )}
+          </div>
+
+          {/* Sección Análisis */}
+          <div className="space-y-1">
+            <p className="px-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Análisis y Datos</p>
+
+            <button 
+              onClick={() => { setActiveTab("analytics"); setIsMobileMenuOpen(false); }}
+              className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "analytics" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+            >
+              {activeTab === "analytics" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+              <span className="material-symbols-outlined">analytics</span>
+              <span>Analíticas</span>
+            </button>
+
+            {getAuthUser()?.rol === "admin" && (
+              <>
+                <button
+                  id="nav-dashboard"
+                  onClick={() => { setActiveTab("dashboard"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "dashboard" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "dashboard" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">bar_chart_4_bars</span>
+                  <span>Dashboard KPIs</span>
+                </button>
+                <button
+                  id="nav-exports"
+                  onClick={() => { setActiveTab("exports"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "exports" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "exports" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">download</span>
+                  <span>Exportar Datos</span>
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Sección Sistema */}
+          <div className="space-y-1">
+            <p className="px-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Sistema y ML</p>
+
+            <button 
+              onClick={() => { setActiveTab("settings"); setIsMobileMenuOpen(false); }}
+              className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "settings" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+            >
+              {activeTab === "settings" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+              <span className="material-symbols-outlined">settings</span>
+              <span>Configuración</span>
+            </button>
+
+            {getAuthUser()?.rol === "admin" && (
+              <>
+                <button 
+                  onClick={() => { setActiveTab("model"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "model" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "model" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">auto_graph</span>
+                  <span>Reentrenar Modelo</span>
+                </button>
+                <button
+                  id="nav-backups"
+                  onClick={() => { setActiveTab("backups"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "backups" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "backups" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">backup</span>
+                  <span>Copias de Seguridad</span>
+                </button>
+                <button
+                  id="nav-monitoring"
+                  onClick={() => { setActiveTab("monitoring"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "monitoring" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "monitoring" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">monitor_heart</span>
+                  <span className="whitespace-nowrap">Monitoreo en Vivo</span>
+                </button>
+                <button
+                  id="nav-mlaudit"
+                  onClick={() => { setActiveTab("mlaudit"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "mlaudit" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "mlaudit" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">model_training</span>
+                  <span>Auditoría ML</span>
+                </button>
+              </>
+            )}
+          </div>
         </nav>
         <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
           <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all font-semibold">
