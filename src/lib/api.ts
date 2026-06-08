@@ -5,6 +5,9 @@ export const API_BASE =
 
 const LEGACY_PREFIX = "/make-server-d427d5bf";
 
+// Static import of auth functions to avoid mixed import warning
+import { getAccessToken as _getAccessToken } from "./auth";
+
 function apiPath(segment: string): string {
   const path = `${LEGACY_PREFIX}${segment}`;
   return API_BASE ? `${API_BASE}${path}` : path;
@@ -164,9 +167,17 @@ export async function submitQuestionnaire(
     ? apiPath("/submit-questionnaire")
     : `${(import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://localhost:8000")}/api/questionnaire/submit-questionnaire`;
 
+  // Try to get the auth token for authenticated users
+  const token = _getAccessToken();
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(endpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
 
@@ -236,7 +247,7 @@ export async function signupStudent(payload: {
   genero?: string;
   carrera?: string;
   universidad?: string;
-}): Promise<AuthSession['user']> {
+}): Promise<AuthSession> {
   const response = await fetch(`${API_BASE}/api/auth/signup-student`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -290,7 +301,7 @@ export async function resetPassword(password: string): Promise<{ detail: string 
   const response = await fetch(apiPath("/reset-password"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ new_password: password, access_token: getAccessToken() || "" }),
+    body: JSON.stringify({ new_password: password, access_token: _getAccessToken() || "" }),
   });
   if (!response.ok) {
     throw new Error("Error al restablecer la contraseña. El enlace puede haber expirado.");
@@ -337,6 +348,10 @@ export interface ModelStatus {
   last_retrained_at?: string | null;
   origen_datos?: string | null;
   comentario?: string | null;
+  accuracy?: number | null;
+  precision?: number | null;
+  recall?: number | null;
+  f1_score?: number | null;
 }
 
 export interface RetrainModelRequest {
@@ -346,6 +361,15 @@ export interface RetrainModelRequest {
   comentario?: string;
 }
 
+export interface ModelPerformance {
+  model_name: string;
+  accuracy: number;
+  precision: number;
+  recall: number;
+  f1_score: number;
+  is_winner: boolean;
+}
+
 export interface RetrainModelResponse {
   success: boolean;
   model_name: string;
@@ -353,6 +377,7 @@ export interface RetrainModelResponse {
   previous_version?: string | null;
   updated_records: number;
   message: string;
+  comparison?: ModelPerformance[];
 }
 
 export async function fetchUsers(token: string): Promise<User[]> {

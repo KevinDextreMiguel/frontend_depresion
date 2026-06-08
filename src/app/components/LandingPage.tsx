@@ -1,174 +1,46 @@
-import { Shield, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { Shield } from "lucide-react";
 
 interface LandingPageProps {
   onStartEvaluation: () => void;
   onShowInfo: () => void;
   onNavigate?: (screen: string) => void;
+  hasSavedProgress?: boolean;
+  onContinueEvaluation?: () => void;
 }
 
-export function LandingPage({ onStartEvaluation, onShowInfo, onNavigate }: LandingPageProps) {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
+export function LandingPage({ 
+  onStartEvaluation, 
+  onShowInfo, 
+  onNavigate, 
+  hasSavedProgress = false,
+  onContinueEvaluation 
+}: LandingPageProps) {
   return (
-    <div className="bg-background text-on-background font-body-md antialiased min-h-screen">
-      {/* TopAppBar Shell */}
-      <header className="bg-[#F8FAFC] dark:bg-slate-950 docked full-width top-0 z-50 border-b border-slate-200 dark:border-slate-800 transition-all font-manrope antialiased tracking-tight sticky">
-        <div className="flex justify-between items-center w-full px-6 py-4 max-w-7xl mx-auto">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#4A90E2]" style={{ fontVariationSettings: "'FILL' 1" }}>
-              psychology
-            </span>
-            <span className="text-xl font-bold text-[#4A90E2] dark:text-blue-400">MindCheck</span>
-          </div>
-          <nav className="hidden md:flex items-center gap-8">
-            <a
-              className="text-[#4A90E2] dark:text-blue-300 font-bold border-b-2 border-[#4A90E2] pb-1 hover:text-[#4A90E2] dark:hover:text-blue-200 transition-colors duration-200"
-              href="#"
-            >
-              Inicio
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2] dark:hover:text-blue-200 transition-colors duration-200"
-              href="#"
-              onClick={(e) => { e.preventDefault(); onStartEvaluation(); }}
-            >
-              Evaluación
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2] dark:hover:text-blue-200 transition-colors duration-200"
-              href="#"
-              onClick={(e) => { e.preventDefault(); onNavigate && onNavigate('student-evolution'); }}
-            >
-              Mi Evolución
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2] dark:hover:text-blue-200 transition-colors duration-200"
-              href="#"
-              onClick={(e) => { e.preventDefault(); onNavigate && onNavigate('privacy-consent'); }}
-            >
-              Privacidad
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2] dark:hover:text-blue-200 transition-colors duration-200"
-              href="#"
-              onClick={(e) => { e.preventDefault(); onNavigate && onNavigate('student-register'); }}
-            >
-              Registrarse
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2] dark:hover:text-blue-200 transition-colors duration-200"
-              href="#"
-              onClick={(e) => { e.preventDefault(); onNavigate && onNavigate('auth'); }}
-            >
-              Registrarse
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2] dark:hover:text-blue-200 transition-colors duration-200"
-              href="#"
-              onClick={(e) => { e.preventDefault(); onNavigate && onNavigate('auth'); }}
-            >
-              Portal Admin
-            </a>
-          </nav>
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2 text-slate-500">
-              <button 
-                onClick={() => document.documentElement.classList.toggle('dark')} 
-                className="material-symbols-outlined hover:text-[#4A90E2] transition-colors"
+    <div className="bg-background text-on-background font-body-md antialiased w-full">
+      <main className="w-full pt-6 pb-12">
+        {/* Banner de Cuestionario Guardado / Pendiente */}
+        {hasSavedProgress && onContinueEvaluation && (
+          <div className="max-w-7xl mx-auto px-6 mb-8 animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-primary/20 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4 text-left">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0 animate-pulse">
+                  <span className="material-symbols-outlined text-2xl">assignment_late</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white">Tienes una evaluación en progreso</h4>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Retoma tu cuestionario desde donde te quedaste para no perder tus respuestas.</p>
+                </div>
+              </div>
+              <button
+                onClick={onContinueEvaluation}
+                className="w-full md:w-auto px-6 py-3 bg-primary text-on-primary font-bold text-sm rounded-xl hover:bg-primary-container hover:text-on-primary-container active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
-                contrast
-              </button>
-              <button className="material-symbols-outlined hover:text-[#4A90E2] transition-colors">text_increase</button>
-            </div>
-            <button
-              onClick={onStartEvaluation}
-              className="hidden md:block bg-primary text-on-primary px-5 py-2.5 rounded-full font-button text-button hover:bg-primary-container active:scale-95 transition-all shadow-sm"
-            >
-              Iniciar Evaluación
-            </button>
-            <button 
-              className="md:hidden p-2 text-slate-500 hover:text-primary transition-colors"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            >
-              {isMobileMenuOpen ? <X /> : <Menu />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-lg py-4 px-6 flex flex-col gap-4 animate-in slide-in-from-top-2">
-            <a
-              className="text-[#4A90E2] dark:text-blue-300 font-bold"
-              href="#"
-              onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); }}
-            >
-              Inicio
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2]"
-              href="#"
-              onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); onStartEvaluation(); }}
-            >
-              Evaluación
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2]"
-              href="#"
-              onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); onNavigate && onNavigate('student-evolution'); }}
-            >
-              Mi Evolución
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2]"
-              href="#"
-              onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); onNavigate && onNavigate('privacy-consent'); }}
-            >
-              Privacidad y Consentimiento
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2]"
-              href="#"
-              onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); onNavigate && onNavigate('auth'); }}
-            >
-              Registrarse
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2]"
-              href="#"
-              onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); onNavigate && onNavigate('support'); }}
-            >
-              Soporte
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2]"
-              href="#"
-              onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); onNavigate && onNavigate('auth'); }}
-            >
-              Portal Admin
-            </a>
-            <hr className="border-slate-200 dark:border-slate-800 my-2" />
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Modo Oscuro</span>
-              <button 
-                onClick={() => document.documentElement.classList.toggle('dark')} 
-                className="material-symbols-outlined text-slate-500 hover:text-[#4A90E2] transition-colors"
-              >
-                contrast
+                <span>Continuar Evaluación</span>
+                <span className="material-symbols-outlined text-sm">arrow_forward</span>
               </button>
             </div>
-            <button
-              onClick={() => { setIsMobileMenuOpen(false); onStartEvaluation(); }}
-              className="w-full bg-primary text-on-primary px-5 py-3 rounded-xl font-button text-button hover:bg-primary-container active:scale-95 transition-all mt-2"
-            >
-              Iniciar Evaluación
-            </button>
           </div>
         )}
-      </header>
-
-      <main className="min-h-screen pt-16">
         {/* Hero Section */}
         <section className="max-w-7xl mx-auto px-6 py-20 flex flex-col md:flex-row items-center gap-16">
           <div className="flex-1 space-y-8">
@@ -371,47 +243,6 @@ export function LandingPage({ onStartEvaluation, onShowInfo, onNavigate }: Landi
         </section>
       </main>
 
-      {/* Footer Shell */}
-      <footer className="bg-[#F8FAFC] dark:bg-slate-950 full-width py-12 border-t border-slate-200 dark:border-slate-800 transition-all font-manrope text-xs tracking-wide">
-        <div className="flex flex-col md:flex-row justify-between items-center w-full px-8 max-w-7xl mx-auto gap-8">
-          <div className="flex flex-col items-center md:items-start gap-2">
-            <div className="flex items-center gap-2 mb-2">
-              <span
-                className="material-symbols-outlined text-[#4A90E2] text-xl"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                psychology
-              </span>
-              <span className="text-lg font-bold text-[#4A90E2]">MindCheck</span>
-            </div>
-            <p className="text-slate-500 dark:text-slate-400 text-center md:text-left max-w-sm">
-              © 2026 Iniciativa de Salud Mental Universitaria. Para apoyo en crisis, llama al 113.
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-x-8 gap-y-4">
-            <a className="text-slate-500 dark:text-slate-400 hover:text-[#4A90E2] dark:hover:text-blue-300 transition-colors" href="#">
-              Política de Privacidad
-            </a>
-            <a className="text-slate-500 dark:text-slate-400 hover:text-[#4A90E2] dark:hover:text-blue-300 transition-colors" href="#">
-              Contactar Soporte
-            </a>
-            <a className="text-slate-500 dark:text-slate-400 hover:text-[#4A90E2] dark:hover:text-blue-300 transition-colors" href="#">
-              Términos de Servicio
-            </a>
-            <a className="text-slate-500 dark:text-slate-400 hover:text-[#4A90E2] dark:hover:text-blue-300 transition-colors" href="#">
-              Accesibilidad
-            </a>
-          </div>
-          <div className="flex gap-4">
-            <button className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-slate-500 hover:text-primary transition-colors">
-              <span className="material-symbols-outlined text-xl">language</span>
-            </button>
-            <button className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-slate-500 hover:text-primary transition-colors">
-              <span className="material-symbols-outlined text-xl">share</span>
-            </button>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

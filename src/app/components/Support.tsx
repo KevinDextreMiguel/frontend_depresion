@@ -98,85 +98,7 @@ export function Support({ onBack, onNavigate, onStartEvaluation }: SupportProps)
   };
 
   return (
-    <div className="bg-background font-body-md text-on-background min-h-screen flex flex-col">
-      {/* TopAppBar */}
-      <header className="bg-[#F8FAFC] dark:bg-slate-950 docked full-width top-0 z-50 border-b border-slate-200 dark:border-slate-800 transition-colors duration-200">
-        <div className="flex justify-between items-center w-full px-6 py-4 max-w-7xl mx-auto">
-          <div className="flex items-center gap-8">
-            <span className="text-xl font-bold text-[#4A90E2] dark:text-blue-400 font-manrope antialiased tracking-tight">MindCheck</span>
-            <nav className="hidden md:flex items-center gap-6">
-              <button onClick={() => onNavigate("landing")} className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2] dark:hover:text-blue-200 transition-colors duration-200">Inicio</button>
-              <button onClick={onStartEvaluation} className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2] dark:hover:text-blue-200 transition-colors duration-200">Evaluación</button>
-              <button className="text-[#4A90E2] dark:text-blue-300 font-bold border-b-2 border-[#4A90E2] pb-1 hover:text-[#4A90E2] dark:hover:text-blue-200 transition-colors duration-200">Soporte</button>
-              <button onClick={() => onNavigate("auth")} className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2] dark:hover:text-blue-200 transition-colors duration-200">Portal Admin</button>
-            </nav>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2">
-              <button onClick={() => document.documentElement.classList.toggle('dark')} className="material-symbols-outlined text-slate-500 hover:text-[#4A90E2] active:scale-95 transition-transform">contrast</button>
-              <button className="material-symbols-outlined text-slate-500 hover:text-[#4A90E2] active:scale-95 transition-transform">text_increase</button>
-            </div>
-            <button onClick={onStartEvaluation} className="hidden md:block bg-primary text-on-primary px-6 py-2 rounded-full font-button text-button active:scale-95 transition-transform">Iniciar Evaluación</button>
-            <button 
-              className="md:hidden p-2 text-slate-500 hover:text-primary transition-colors"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            >
-              {isMobileMenuOpen ? <X /> : <Menu />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-lg py-4 px-6 flex flex-col gap-4 animate-in slide-in-from-top-2 z-50">
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2]"
-              href="#"
-              onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); onNavigate("landing"); }}
-            >
-              Inicio
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2]"
-              href="#"
-              onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); onStartEvaluation(); }}
-            >
-              Evaluación
-            </a>
-            <a
-              className="text-[#4A90E2] dark:text-blue-300 font-bold"
-              href="#"
-              onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); }}
-            >
-              Soporte
-            </a>
-            <a
-              className="text-slate-500 dark:text-slate-400 font-medium hover:text-[#4A90E2]"
-              href="#"
-              onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); onNavigate("auth"); }}
-            >
-              Portal Admin
-            </a>
-            <hr className="border-slate-200 dark:border-slate-800 my-2" />
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Modo Oscuro</span>
-              <button 
-                onClick={() => document.documentElement.classList.toggle('dark')} 
-                className="material-symbols-outlined text-slate-500 hover:text-[#4A90E2] transition-colors"
-              >
-                contrast
-              </button>
-            </div>
-            <button
-              onClick={() => { setIsMobileMenuOpen(false); onStartEvaluation(); }}
-              className="w-full bg-primary text-on-primary px-5 py-3 rounded-xl font-button text-button hover:bg-primary-container active:scale-95 transition-all mt-2"
-            >
-              Iniciar Evaluación
-            </button>
-          </div>
-        )}
-      </header>
-
+    <div className="bg-background font-body-md text-on-background w-full flex flex-col">
       {/* Main Chat Canvas */}
       <main className="flex-grow flex items-center justify-center p-4 md:p-8">
         <div className="w-full max-w-[800px] h-[750px] bg-white border border-outline-variant rounded-xl shadow-[0px_4px_20px_rgba(74,144,226,0.08)] flex flex-col overflow-hidden relative">
@@ -256,20 +178,6 @@ export function Support({ onBack, onNavigate, onStartEvaluation }: SupportProps)
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-[#F8FAFC] dark:bg-slate-950 full-width py-8 border-t border-slate-200 dark:border-slate-800 mt-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center w-full px-8 max-w-7xl mx-auto gap-4">
-          <div className="flex flex-col gap-1">
-            <p className="font-manrope text-xs tracking-wide text-slate-500 dark:text-slate-400">© 2026 Iniciativa de Salud Mental Universitaria. Para apoyo en crisis, llama al 113.</p>
-          </div>
-          <div className="flex gap-6">
-            <a className="font-manrope text-xs tracking-wide text-slate-500 dark:text-slate-400 hover:text-[#4A90E2] dark:hover:text-blue-300 transition-colors" href="#">Política de Privacidad</a>
-            <a className="font-manrope text-xs tracking-wide text-slate-500 dark:text-slate-400 hover:text-[#4A90E2] dark:hover:text-blue-300 transition-colors" href="#">Contactar Soporte</a>
-            <a className="font-manrope text-xs tracking-wide text-slate-500 dark:text-slate-400 hover:text-[#4A90E2] dark:hover:text-blue-300 transition-colors" href="#">Términos de Servicio</a>
-            <a className="font-manrope text-xs tracking-wide text-slate-500 dark:text-slate-400 hover:text-[#4A90E2] dark:hover:text-blue-300 transition-colors" href="#">Accesibilidad</a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

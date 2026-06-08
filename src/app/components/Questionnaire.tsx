@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Menu, X, Loader2, CheckCircle2, RotateCcw, ArrowRight, ArrowLeft } from "lucide-react";
+import { getAuthUser } from "@/lib/auth";
 import {
   PHQ9_QUESTIONS,
   PHQ9_OPTIONS,
@@ -298,6 +299,10 @@ export function Questionnaire({
       if (currentQuestion < 8) {
         setCurrentQuestion(currentQuestion + 1);
       } else if (consentAccepted) {
+        // Use authenticated user ID if available, otherwise fall back to sessionId
+        const authUser = getAuthUser();
+        const effectiveUserId = authUser?.id || sessionId;
+        
         // Enviar payload completo
         onComplete({
           edad: demographics.edad,
@@ -317,7 +322,7 @@ export function Questionnaire({
           mspss_respuestas: mspssResponses,
           phq9_respuestas: phq9Responses,
           consentimiento_aceptado: consentAccepted,
-          test_user_id: sessionId
+          test_user_id: effectiveUserId
         });
       }
     }

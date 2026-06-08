@@ -88,6 +88,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
   const [retrainLoading, setRetrainLoading] = useState(false);
   const [retrainMessage, setRetrainMessage] = useState<string | null>(null);
+  const [retrainComparison, setRetrainComparison] = useState<any[] | null>(null);
   const [updatingDerivationId, setUpdatingDerivationId] = useState<string | null>(null);
   const [selectedStudentAnonId, setSelectedStudentAnonId] = useState<string | null>(null);
   const [studentHistory, setStudentHistory] = useState<StudentHistoryItem[]>([]);
@@ -183,6 +184,8 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [exportCareer, setExportCareer] = useState("");
   const [researcherDataset, setResearcherDataset] = useState<any[]>([]);
   const [loadingResearcher, setLoadingResearcher] = useState(false);
+  const [downloadingExcel, setDownloadingExcel] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const [liveMonitoring, setLiveMonitoring] = useState<any>(null);
   const [loadingMonitoring, setLoadingMonitoring] = useState(false);
@@ -562,6 +565,76 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     }
   }, []);
 
+  const handleDownloadExcel = async () => {
+    const token = getAccessToken();
+    if (!token) {
+      toast.error("Sesión no iniciada o inválida.");
+      return;
+    }
+    try {
+      setDownloadingExcel(true);
+      const url = getExcelExportUrl(exportStart || undefined, exportEnd || undefined, exportCareer || undefined);
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error("No se pudo obtener el archivo del servidor.");
+      }
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.setAttribute("download", `reporte_mindcheck_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success("Excel descargado correctamente.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al descargar reporte en Excel.");
+    } finally {
+      setDownloadingExcel(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    const token = getAccessToken();
+    if (!token) {
+      toast.error("Sesión no iniciada o inválida.");
+      return;
+    }
+    try {
+      setDownloadingPdf(true);
+      const url = getPdfExportUrl(exportStart || undefined, exportEnd || undefined, exportCareer || undefined);
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error("No se pudo obtener el archivo del servidor.");
+      }
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.setAttribute("download", `reporte_mindcheck_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success("PDF descargado correctamente.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al descargar reporte en PDF.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   const handleSaveSetting = async (id: string) => {
     const token = getAccessToken();
     if (!token) return;
@@ -639,19 +712,27 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     try {
       setRetrainLoading(true);
       setRetrainMessage(null);
+      setRetrainComparison(null);
       const result = await retrainModel(token, {
         comentario: "Reentrenamiento de modelo iniciado desde el panel administrativo.",
       });
       setRetrainMessage(result.message);
+      if (result.comparison) {
+        setRetrainComparison(result.comparison);
+      }
       setModelStatus({
         model_name: result.model_name,
         version: result.version,
-        active_records: modelStatus?.active_records ?? 0,
+        active_records: result.updated_records,
         last_retrained_at: new Date().toISOString(),
-        origen_datos: modelStatus?.origen_datos ?? null,
+        origen_datos: result.model_name,
         comentario: result.message,
+        accuracy: result.comparison?.find(c => c.is_winner)?.accuracy,
+        precision: result.comparison?.find(c => c.is_winner)?.precision,
+        recall: result.comparison?.find(c => c.is_winner)?.recall,
+        f1_score: result.comparison?.find(c => c.is_winner)?.f1_score,
       });
-      toast.success("Reentrenamiento iniciado correctamente.");
+      toast.success("Modelo reentrenado y comparado exitosamente.");
       await loadDashboardData();
     } catch (err) {
       console.error("Retrain error", err);
@@ -1960,10 +2041,78 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 <p className="mt-2 font-semibold dark:text-white">{modelStatus?.version ?? "1.0"}</p>
               </div>
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
-                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-[0.18em]">Registros anonimizados</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-[0.18em]">Registros en base de datos</p>
                 <p className="mt-2 font-semibold dark:text-white">{modelStatus?.active_records ?? 0}</p>
               </div>
             </div>
+
+            {modelStatus?.accuracy !== undefined && modelStatus?.accuracy !== null && (
+              <div className="mt-6 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3">Métricas de Rendimiento (Modelo Ganador Activo)</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">Accuracy</p>
+                    <p className="text-xl font-bold mt-1 text-blue-600 dark:text-blue-400">{(modelStatus.accuracy * 100).toFixed(1)}%</p>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">F1-Score</p>
+                    <p className="text-xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">{modelStatus.f1_score?.toFixed(3)}</p>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">Precisión</p>
+                    <p className="text-xl font-bold mt-1 text-amber-600 dark:text-amber-400">{(modelStatus.precision * 100).toFixed(1)}%</p>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase">Recall</p>
+                    <p className="text-xl font-bold mt-1 text-violet-600 dark:text-violet-400">{(modelStatus.recall * 100).toFixed(1)}%</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {retrainComparison && (
+              <div className="mt-6 p-5 rounded-2xl border border-slate-150 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-500">done_all</span>
+                  Comparativa de Modelos Evaluados en Entrenamiento
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold">Algoritmo</th>
+                        <th className="px-4 py-3 font-semibold">Accuracy</th>
+                        <th className="px-4 py-3 font-semibold">F1-Score</th>
+                        <th className="px-4 py-3 font-semibold">Precisión</th>
+                        <th className="px-4 py-3 font-semibold">Recall</th>
+                        <th className="px-4 py-3 font-semibold">Resultado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {retrainComparison.map((item) => (
+                        <tr key={item.model_name} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 ${item.is_winner ? "bg-emerald-50/30 dark:bg-emerald-950/10 font-medium" : ""}`}>
+                          <td className="px-4 py-3 text-slate-900 dark:text-white">{item.model_name}</td>
+                          <td className="px-4 py-3 text-slate-650 dark:text-slate-400">{(item.accuracy * 100).toFixed(1)}%</td>
+                          <td className="px-4 py-3 text-slate-650 dark:text-slate-400">{item.f1_score.toFixed(3)}</td>
+                          <td className="px-4 py-3 text-slate-650 dark:text-slate-400">{(item.precision * 100).toFixed(1)}%</td>
+                          <td className="px-4 py-3 text-slate-650 dark:text-slate-400">{(item.recall * 100).toFixed(1)}%</td>
+                          <td className="px-4 py-3">
+                            {item.is_winner ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
+                                <span className="material-symbols-outlined text-[14px]">emoji_events</span>
+                                Ganador (Activo)
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400">Evaluado</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {modelStatus?.last_retrained_at && (
               <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">
@@ -2775,22 +2924,26 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
           </div>
         </div>
         <div className="flex gap-3 flex-wrap pt-2">
-          <a
-            href={getExcelExportUrl(exportStart || undefined, exportEnd || undefined, exportCareer || undefined)}
-            target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition shadow-sm"
+          <button
+            onClick={handleDownloadExcel}
+            disabled={downloadingExcel}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition shadow-sm cursor-pointer"
           >
-            <span className="material-symbols-outlined text-sm">table_view</span>
-            Descargar Excel (.xlsx)
-          </a>
-          <a
-            href={getPdfExportUrl(exportStart || undefined, exportEnd || undefined, exportCareer || undefined)}
-            target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition shadow-sm"
+            <span className="material-symbols-outlined text-sm">
+              {downloadingExcel ? "hourglass_empty" : "table_view"}
+            </span>
+            {downloadingExcel ? "Descargando..." : "Descargar Excel (.xlsx)"}
+          </button>
+          <button
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition shadow-sm cursor-pointer"
           >
-            <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
-            Descargar PDF
-          </a>
+            <span className="material-symbols-outlined text-sm">
+              {downloadingPdf ? "hourglass_empty" : "picture_as_pdf"}
+            </span>
+            {downloadingPdf ? "Descargando..." : "Descargar PDF"}
+          </button>
         </div>
         <p className="text-xs text-slate-400 dark:text-slate-500">Los archivos se generan en el servidor. Si no se aplican filtros, se exportan todos los registros disponibles.</p>
       </div>
