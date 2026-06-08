@@ -248,7 +248,7 @@ export async function signupStudent(payload: {
   carrera?: string;
   universidad?: string;
 }): Promise<AuthSession> {
-  const response = await fetch(`${API_BASE}/api/auth/signup-student`, {
+  const response = await fetch(apiPath("/signup-student"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
