@@ -586,7 +586,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
-      link.setAttribute("download", `reporte_mindcheck_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute("download", `reporte_mindcheck_${new Date().toISOString().split('T')[0]}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
@@ -1881,7 +1881,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                     <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{patient.carrera ?? "—"}</td>
                     <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{patient.universidad ?? "—"}</td>
                     <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
-                      {new Date(patient.ultima_evaluacion).toLocaleDateString("es-PE", { dateStyle: "medium", timeStyle: "short" })}
+                      {new Date(patient.ultima_evaluacion).toLocaleString("es-PE", { dateStyle: "medium", timeStyle: "short" })}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${patient.alerta_suicidio ? "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"}`}>
@@ -3229,7 +3229,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
-        <nav className="flex-1 space-y-1">
+        <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
           <button 
             onClick={() => { setActiveTab("overview"); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-100 ${activeTab === "overview" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
