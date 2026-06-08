@@ -2481,11 +2481,6 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
             </div>
           </div>
         </div>
-
-        <h3 className="font-bold dark:text-white text-lg mt-10 mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">Cuenta</h3>
-        <button onClick={onLogout} className="px-6 py-2.5 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-semibold rounded-lg hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors">
-          Cerrar Sesión
-        </button>
       </div>
     </div>
   );
