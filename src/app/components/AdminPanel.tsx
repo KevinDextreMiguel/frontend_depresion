@@ -77,6 +77,9 @@ const RISK_LEVEL_OPTIONS = [
 export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isClinicaExpanded, setIsClinicaExpanded] = useState(true);
+  const [isAnalisisExpanded, setIsAnalisisExpanded] = useState(true);
+  const [isSistemaExpanded, setIsSistemaExpanded] = useState(true);
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [derivations, setDerivations] = useState<DerivationItem[]>([]);
@@ -3229,138 +3232,177 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
-        <nav className="flex-1 space-y-4 overflow-y-auto pr-1 custom-scrollbar">
+        <nav className="flex-1 space-y-4 overflow-y-auto no-scrollbar pr-1">
           {/* Sección Clínica */}
           <div className="space-y-1">
-            <p className="px-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Área Clínica</p>
+            <button 
+              type="button"
+              onClick={() => setIsClinicaExpanded(!isClinicaExpanded)}
+              className="w-full flex items-center justify-between px-4 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            >
+              <span>Área Clínica</span>
+              <span className="material-symbols-outlined text-[16px] transition-transform duration-200">
+                {isClinicaExpanded ? "expand_less" : "expand_more"}
+              </span>
+            </button>
             
-            <button 
-              onClick={() => { setActiveTab("overview"); setIsMobileMenuOpen(false); }}
-              className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "overview" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-            >
-              {activeTab === "overview" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-              <span className="material-symbols-outlined">dashboard</span>
-              <span>Resumen</span>
-            </button>
+            {isClinicaExpanded && (
+              <div className="space-y-1 mt-1 transition-all duration-200">
+                <button 
+                  onClick={() => { setActiveTab("overview"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "overview" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "overview" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">dashboard</span>
+                  <span>Resumen</span>
+                </button>
 
-            <button 
-              onClick={() => { setActiveTab("assigned"); setIsMobileMenuOpen(false); }}
-              className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "assigned" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-            >
-              {activeTab === "assigned" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-              <span className="material-symbols-outlined">person_search</span>
-              <span>Pacientes Asignados</span>
-            </button>
+                <button 
+                  onClick={() => { setActiveTab("assigned"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "assigned" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "assigned" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">person_search</span>
+                  <span>Pacientes Asignados</span>
+                </button>
 
-            <button 
-              onClick={() => { setActiveTab("reports"); setIsMobileMenuOpen(false); }}
-              className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "reports" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-            >
-              {activeTab === "reports" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-              <span className="material-symbols-outlined flex-shrink-0">assignment_ind</span>
-              <span className="whitespace-nowrap">Reportes de Estudiantes</span>
-            </button>
+                <button 
+                  onClick={() => { setActiveTab("reports"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "reports" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "reports" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined flex-shrink-0">assignment_ind</span>
+                  <span className="whitespace-nowrap">Reportes de Estudiantes</span>
+                </button>
 
-            {getAuthUser()?.rol === "admin" && (
-              <button 
-                onClick={() => { setActiveTab("users"); setIsMobileMenuOpen(false); }}
-                className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "users" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-              >
-                {activeTab === "users" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-                <span className="material-symbols-outlined">manage_accounts</span>
-                <span>Gestión de Usuarios</span>
-              </button>
+                {getAuthUser()?.rol === "admin" && (
+                  <button 
+                    onClick={() => { setActiveTab("users"); setIsMobileMenuOpen(false); }}
+                    className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "users" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                  >
+                    {activeTab === "users" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                    <span className="material-symbols-outlined">manage_accounts</span>
+                    <span>Gestión de Usuarios</span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
           {/* Sección Análisis */}
           <div className="space-y-1">
-            <p className="px-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Análisis y Datos</p>
-
             <button 
-              onClick={() => { setActiveTab("analytics"); setIsMobileMenuOpen(false); }}
-              className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "analytics" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+              type="button"
+              onClick={() => setIsAnalisisExpanded(!isAnalisisExpanded)}
+              className="w-full flex items-center justify-between px-4 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
             >
-              {activeTab === "analytics" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-              <span className="material-symbols-outlined">analytics</span>
-              <span>Analíticas</span>
+              <span>Análisis y Datos</span>
+              <span className="material-symbols-outlined text-[16px] transition-transform duration-200">
+                {isAnalisisExpanded ? "expand_less" : "expand_more"}
+              </span>
             </button>
 
-            {getAuthUser()?.rol === "admin" && (
-              <>
-                <button
-                  id="nav-dashboard"
-                  onClick={() => { setActiveTab("dashboard"); setIsMobileMenuOpen(false); }}
-                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "dashboard" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+            {isAnalisisExpanded && (
+              <div className="space-y-1 mt-1 transition-all duration-200">
+                <button 
+                  onClick={() => { setActiveTab("analytics"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "analytics" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
                 >
-                  {activeTab === "dashboard" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-                  <span className="material-symbols-outlined">bar_chart_4_bars</span>
-                  <span>Dashboard KPIs</span>
+                  {activeTab === "analytics" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">analytics</span>
+                  <span>Analíticas</span>
                 </button>
-                <button
-                  id="nav-exports"
-                  onClick={() => { setActiveTab("exports"); setIsMobileMenuOpen(false); }}
-                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "exports" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-                >
-                  {activeTab === "exports" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-                  <span className="material-symbols-outlined">download</span>
-                  <span>Exportar Datos</span>
-                </button>
-              </>
+
+                {getAuthUser()?.rol === "admin" && (
+                  <>
+                    <button
+                      id="nav-dashboard"
+                      onClick={() => { setActiveTab("dashboard"); setIsMobileMenuOpen(false); }}
+                      className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "dashboard" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                    >
+                      {activeTab === "dashboard" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                      <span className="material-symbols-outlined">bar_chart_4_bars</span>
+                      <span>Dashboard KPIs</span>
+                    </button>
+                    <button
+                      id="nav-exports"
+                      onClick={() => { setActiveTab("exports"); setIsMobileMenuOpen(false); }}
+                      className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "exports" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                    >
+                      {activeTab === "exports" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                      <span className="material-symbols-outlined">download</span>
+                      <span>Exportar Datos</span>
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
 
           {/* Sección Sistema */}
           <div className="space-y-1">
-            <p className="px-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Sistema y ML</p>
-
             <button 
-              onClick={() => { setActiveTab("settings"); setIsMobileMenuOpen(false); }}
-              className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "settings" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+              type="button"
+              onClick={() => setIsSistemaExpanded(!isSistemaExpanded)}
+              className="w-full flex items-center justify-between px-4 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
             >
-              {activeTab === "settings" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-              <span className="material-symbols-outlined">settings</span>
-              <span>Configuración</span>
+              <span>Sistema y ML</span>
+              <span className="material-symbols-outlined text-[16px] transition-transform duration-200">
+                {isSistemaExpanded ? "expand_less" : "expand_more"}
+              </span>
             </button>
 
-            {getAuthUser()?.rol === "admin" && (
-              <>
+            {isSistemaExpanded && (
+              <div className="space-y-1 mt-1 transition-all duration-200">
                 <button 
-                  onClick={() => { setActiveTab("model"); setIsMobileMenuOpen(false); }}
-                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "model" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                  onClick={() => { setActiveTab("settings"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "settings" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
                 >
-                  {activeTab === "model" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-                  <span className="material-symbols-outlined">auto_graph</span>
-                  <span>Reentrenar Modelo</span>
+                  {activeTab === "settings" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">settings</span>
+                  <span>Configuración</span>
                 </button>
-                <button
-                  id="nav-backups"
-                  onClick={() => { setActiveTab("backups"); setIsMobileMenuOpen(false); }}
-                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "backups" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-                >
-                  {activeTab === "backups" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-                  <span className="material-symbols-outlined">backup</span>
-                  <span>Copias de Seguridad</span>
-                </button>
-                <button
-                  id="nav-monitoring"
-                  onClick={() => { setActiveTab("monitoring"); setIsMobileMenuOpen(false); }}
-                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "monitoring" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-                >
-                  {activeTab === "monitoring" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-                  <span className="material-symbols-outlined">monitor_heart</span>
-                  <span className="whitespace-nowrap">Monitoreo en Vivo</span>
-                </button>
-                <button
-                  id="nav-mlaudit"
-                  onClick={() => { setActiveTab("mlaudit"); setIsMobileMenuOpen(false); }}
-                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "mlaudit" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-                >
-                  {activeTab === "mlaudit" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-                  <span className="material-symbols-outlined">model_training</span>
-                  <span>Auditoría ML</span>
-                </button>
-              </>
+
+                {getAuthUser()?.rol === "admin" && (
+                  <>
+                    <button 
+                      onClick={() => { setActiveTab("model"); setIsMobileMenuOpen(false); }}
+                      className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "model" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                    >
+                      {activeTab === "model" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                      <span className="material-symbols-outlined">auto_graph</span>
+                      <span>Reentrenar Modelo</span>
+                    </button>
+                    <button
+                      id="nav-backups"
+                      onClick={() => { setActiveTab("backups"); setIsMobileMenuOpen(false); }}
+                      className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "backups" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                    >
+                      {activeTab === "backups" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                      <span className="material-symbols-outlined">backup</span>
+                      <span>Copias de Seguridad</span>
+                    </button>
+                    <button
+                      id="nav-monitoring"
+                      onClick={() => { setActiveTab("monitoring"); setIsMobileMenuOpen(false); }}
+                      className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "monitoring" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                    >
+                      {activeTab === "monitoring" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                      <span className="material-symbols-outlined">monitor_heart</span>
+                      <span className="whitespace-nowrap">Monitoreo en Vivo</span>
+                    </button>
+                    <button
+                      id="nav-mlaudit"
+                      onClick={() => { setActiveTab("mlaudit"); setIsMobileMenuOpen(false); }}
+                      className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "mlaudit" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                    >
+                      {activeTab === "mlaudit" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                      <span className="material-symbols-outlined">model_training</span>
+                      <span>Auditoría ML</span>
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </nav>

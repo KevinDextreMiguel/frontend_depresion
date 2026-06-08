@@ -181,3 +181,13 @@
   scrollbar-color: rgba(156, 163, 175, 0.15) transparent;
 }
 
+/* Utility to completely hide scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+
