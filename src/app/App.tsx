@@ -218,7 +218,9 @@ export default function App() {
           role="status"
           className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:max-w-sm z-50 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100 px-4 py-3 rounded-xl text-sm shadow-lg"
         >
-          El backend local no responde. Inicia FastAPI en el puerto 8000 para guardar evaluaciones.
+          {window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+            ? "El backend local no responde. Inicia FastAPI en el puerto 8000 para guardar evaluaciones."
+            : "El servidor principal (backend) no responde. Por favor, comprueba tu conexión o inténtalo más tarde."}
         </div>
       )}
 
