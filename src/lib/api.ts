@@ -165,7 +165,7 @@ export async function submitQuestionnaire(
 
   const endpoint = Array.isArray(payload)
     ? apiPath("/submit-questionnaire")
-    : `${(import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://localhost:8000")}/api/questionnaire/submit-questionnaire`;
+    : `${API_BASE}/api/questionnaire/submit-questionnaire`;
 
   // Try to get the auth token for authenticated users
   const token = _getAccessToken();
@@ -298,7 +298,7 @@ export async function forgotPassword(email: string): Promise<{ detail: string }>
 }
 
 export async function resetPassword(password: string): Promise<{ detail: string }> {
-  const response = await fetch(apiPath("/reset-password"), {
+  const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ new_password: password, access_token: _getAccessToken() || "" }),
@@ -318,13 +318,26 @@ export interface User {
   rol: string;
   fecha_registro: string;
   activo: boolean;
+  estudiante?: {
+    edad?: number;
+    genero?: string;
+    carrera?: string;
+    universidad?: string;
+  };
 }
 
 export async function updateUserProfile(
   token: string,
-  payload: { nombre: string; foto_perfil: string | null }
+  payload: {
+    nombre: string;
+    foto_perfil: string | null;
+    edad?: number;
+    genero?: string;
+    carrera?: string;
+    universidad?: string;
+  }
 ): Promise<User> {
-  const response = await fetch(apiPath("/auth/profile"), {
+  const response = await fetch(`${API_BASE}/api/auth/profile`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -654,8 +667,8 @@ export async function fetchAssignedPatients(accessToken: string, riskLevels?: st
 export async function createObservation(
   accessToken: string,
   anonStudentId: string,
-  payload: ObservationCreateRequest,
-): Promise<ObservationResponse> {
+  payload: { id_evaluacion?: string; texto: string },
+): Promise<ObservationItem> {
   const response = await fetch(apiPath(`/student-history/${encodeURIComponent(anonStudentId)}/observations`), {
     method: "POST",
     headers: {
@@ -690,18 +703,24 @@ export interface AppointmentResponse {
   created_at: string;
 }
 
-export async function fetchAppointments(accessToken: string): Promise<AppointmentResponse[]> {
-  const response = await fetch(apiPath(`/admin/appointments`), {
+export async function fetchAppointments(accessToken: string): Promise<AppointmentItem[]> {
+  const response = await fetch(apiPath("/admin/appointments"), {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!response.ok) throw new Error(await parseError(response));
   return response.json();
 }
 
-export async function createAppointment(accessToken: string, payload: AppointmentCreateRequest): Promise<AppointmentResponse> {
-  const response = await fetch(apiPath(`/admin/appointments`), {
+export async function createAppointment(
+  accessToken: string,
+  payload: AppointmentCreateRequest,
+): Promise<AppointmentItem> {
+  const response = await fetch(apiPath("/admin/appointments"), {
     method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
     body: JSON.stringify(payload),
   });
   if (!response.ok) throw new Error(await parseError(response));
@@ -711,9 +730,9 @@ export async function createAppointment(accessToken: string, payload: Appointmen
 export async function updateObservation(
   accessToken: string,
   observationId: string,
-  payload: { texto?: string }
-): Promise<ObservationResponse> {
-  const response = await fetch(apiPath(`/observations/${observationId}`), {
+  payload: { texto: string },
+): Promise<ObservationItem> {
+  const response = await fetch(apiPath(`/observations/${encodeURIComponent(observationId)}`), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -1045,7 +1064,26 @@ export async function fetchDashboardKPIs(
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!response.ok) throw new Error(await parseError(response));
-  return response.json();
+  const data = await response.json();
+  
+  // Map backend response to frontend expected structure
+  const total = data.total_screenings || 0;
+  const severeCount = (data.risk_distribution?.severe || 0);
+  const tasaRiesgoSevero = total > 0 ? severeCount / total : 0;
+  
+  return {
+    total_evaluaciones: total,
+    total_estudiantes_unicos: data.active_users || 0,
+    tasa_riesgo_severo: tasaRiesgoSevero,
+    promedio_phq9: data.average_score,
+    distribucion_riesgo: {
+      "Mínimo": data.risk_distribution?.minimal || 0,
+      "Leve": data.risk_distribution?.mild || 0,
+      "Moderado": data.risk_distribution?.moderate || 0,
+      "Mod. Severo": data.risk_distribution?.moderatelySevere || 0,
+      "Severo": severeCount
+    }
+  };
 }
 
 export async function fetchTrendsAdvanced(

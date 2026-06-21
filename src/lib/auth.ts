@@ -7,6 +7,12 @@ export interface AuthUser {
   nombre?: string;
   foto_perfil?: string | null;
   rol: string;
+  estudiante?: {
+    edad?: number;
+    genero?: string;
+    carrera?: string;
+    universidad?: string;
+  };
 }
 
 export interface AuthSession {

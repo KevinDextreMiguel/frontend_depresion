@@ -61,6 +61,11 @@ export function StudentPanel({
   const user = getAuthUser();
   const [profileName, setProfileName] = useState(user?.nombre || "");
   const [profilePhoto, setProfilePhoto] = useState<string | null>(user?.foto_perfil || null);
+  const [profileEdad, setProfileEdad] = useState<string>(user?.estudiante?.edad?.toString() || "");
+  const [profileGenero, setProfileGenero] = useState(user?.estudiante?.genero || "");
+  const [profileCarrera, setProfileCarrera] = useState(user?.estudiante?.carrera || "");
+  const [profileUniversidad, setProfileUniversidad] = useState(user?.estudiante?.universidad || "");
+  
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
@@ -85,7 +90,7 @@ export function StudentPanel({
       }
     };
     loadEvolution();
-  }, []);
+  }, [lastScore]);
 
   const handleSaveProfile = async () => {
     if (!profileName.trim()) { toast.error("El nombre no puede estar vacío."); return; }
@@ -93,12 +98,23 @@ export function StudentPanel({
     if (!token) return;
     try {
       setIsSavingProfile(true);
-      const updatedUser = await updateUserProfile(token, { nombre: profileName, foto_perfil: profilePhoto });
-      updateAuthUser({ nombre: updatedUser.nombre, foto_perfil: updatedUser.foto_perfil });
+      const payload: any = { nombre: profileName, foto_perfil: profilePhoto };
+      if (profileEdad) payload.edad = parseInt(profileEdad, 10);
+      if (profileGenero) payload.genero = profileGenero;
+      if (profileCarrera) payload.carrera = profileCarrera;
+      if (profileUniversidad) payload.universidad = profileUniversidad;
+
+      const updatedUser = await updateUserProfile(token, payload);
+      updateAuthUser({ 
+        nombre: updatedUser.nombre, 
+        foto_perfil: updatedUser.foto_perfil,
+        estudiante: updatedUser.estudiante
+      });
       toast.success("Perfil actualizado correctamente");
       setIsEditingProfile(false);
-    } catch {
-      toast.error("Error al actualizar el perfil.");
+    } catch (error: any) {
+      console.error("Profile update error:", error);
+      toast.error(error.message || "Error al actualizar el perfil.");
     } finally {
       setIsSavingProfile(false);
     }
@@ -322,6 +338,26 @@ export function StudentPanel({
           </div>
         </div>
 
+        {/* Diagnostic Badge */}
+        {latestEval && latestRiskConfig && (
+          <div className={`mb-8 p-4 rounded-xl border ${latestRiskConfig.bg} ${latestRiskConfig.border} flex items-start gap-3`}>
+            <div className={`p-2 rounded-lg ${latestRiskConfig.badgeBg} ${latestRiskConfig.badgeText}`}>
+              <span className="material-symbols-outlined">{latestRiskConfig.icon}</span>
+            </div>
+            <div>
+              <h4 className={`font-bold ${latestRiskConfig.text}`}>
+                Estado actual: {latestRiskConfig.label}
+              </h4>
+              <p className={`text-sm mt-1 ${latestRiskConfig.text} opacity-80`}>
+                Según tu evaluación del {latestEval.fecha}. 
+                {latestEval.nivel_riesgo.toLowerCase().includes("severo") || latestEval.nivel_riesgo.toLowerCase().includes("moderado") 
+                  ? " Te recomendamos revisar la sección de soporte para contactar a un profesional." 
+                  : " Recuerda seguir cuidando de tu salud mental periódicamente."}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Fields */}
         <div className="space-y-4">
           <div>
@@ -345,6 +381,76 @@ export function StudentPanel({
               {user?.email}
             </p>
           </div>
+          
+          <div className="grid grid-cols-2 gap-4 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block uppercase tracking-wider">Edad</label>
+              {isEditingProfile ? (
+                <input
+                  type="number"
+                  value={profileEdad}
+                  onChange={(e) => setProfileEdad(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              ) : (
+                <p className="px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-800">
+                  {user?.estudiante?.edad || "—"}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block uppercase tracking-wider">Género</label>
+              {isEditingProfile ? (
+                <select
+                  value={profileGenero}
+                  onChange={(e) => setProfileGenero(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Femenino">Femenino</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              ) : (
+                <p className="px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-800">
+                  {user?.estudiante?.genero || "—"}
+                </p>
+              )}
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block uppercase tracking-wider">Universidad</label>
+              {isEditingProfile ? (
+                <input
+                  type="text"
+                  value={profileUniversidad}
+                  onChange={(e) => setProfileUniversidad(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              ) : (
+                <p className="px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-800">
+                  {user?.estudiante?.universidad || "—"}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block uppercase tracking-wider">Carrera</label>
+              {isEditingProfile ? (
+                <input
+                  type="text"
+                  value={profileCarrera}
+                  onChange={(e) => setProfileCarrera(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              ) : (
+                <p className="px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-800">
+                  {user?.estudiante?.carrera || "—"}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Actions */}
@@ -359,7 +465,15 @@ export function StudentPanel({
                 {isSavingProfile ? "Guardando..." : "Guardar Cambios"}
               </button>
               <button
-                onClick={() => { setIsEditingProfile(false); setProfileName(user?.nombre || ""); setProfilePhoto(user?.foto_perfil || null); }}
+                onClick={() => { 
+                  setIsEditingProfile(false); 
+                  setProfileName(user?.nombre || ""); 
+                  setProfilePhoto(user?.foto_perfil || null); 
+                  setProfileEdad(user?.estudiante?.edad?.toString() || "");
+                  setProfileGenero(user?.estudiante?.genero || "");
+                  setProfileCarrera(user?.estudiante?.carrera || "");
+                  setProfileUniversidad(user?.estudiante?.universidad || "");
+                }}
                 className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
               >
                 Cancelar
