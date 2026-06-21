@@ -17,8 +17,6 @@ import {
   MIGRACION_OPTIONS
 } from "@/lib/phq9";
 
-const STORAGE_KEY = "mindcheck_phq9_progress";
-const SESSION_KEY = "mindcheck_phq9_session";
 const QUESTIONNAIRE_ID = "b1990c88-e25f-4a87-8d07-7ff7bd8de693";
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || "http://localhost:8000";
 
@@ -38,17 +36,28 @@ export function Questionnaire({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [saveIndicatorVisible, setSaveIndicatorVisible] = useState(false);
   const [showRestartDialog, setShowRestartDialog] = useState(false);
-  
+
+  // Build user-specific storage keys so different students don't share progress
+  const authUser = getAuthUser();
+  const userSuffix = authUser?.id ? `_${authUser.id}` : "";
+  const STORAGE_KEY = `mindcheck_phq9_progress${userSuffix}`;
+  const SESSION_KEY = `mindcheck_phq9_session${userSuffix}`;
+
   const [sessionId] = useState<string>(() => {
     try {
+      // Clear any anonymous (non-user-specific) session when a user is logged in
+      if (authUser?.id) {
+        localStorage.removeItem("mindcheck_phq9_session");
+        localStorage.removeItem("mindcheck_phq9_progress");
+      }
       let id = localStorage.getItem(SESSION_KEY);
       if (!id) {
-        id = crypto.randomUUID();
+        id = authUser?.id || crypto.randomUUID();
         localStorage.setItem(SESSION_KEY, id);
       }
       return id;
     } catch {
-      return crypto.randomUUID();
+      return authUser?.id || crypto.randomUUID();
     }
   });
 
