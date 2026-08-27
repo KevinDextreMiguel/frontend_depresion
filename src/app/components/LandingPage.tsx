@@ -44,11 +44,6 @@ export function LandingPage({
         {/* Hero Section */}
         <section className="max-w-7xl mx-auto px-6 py-20 flex flex-col md:flex-row items-center gap-16">
           <div className="flex-1 space-y-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface-container rounded-full border border-outline-variant">
-              <span className="text-label-caps font-label-caps text-on-secondary-container">
-                INICIATIVA DE BIENESTAR UNIVERSITARIO
-              </span>
-            </div>
             <h1 className="font-h1 text-h1 text-on-surface max-w-xl">
               Prioriza tu salud mental con <span className="text-primary">MindCheck</span>.
             </h1>

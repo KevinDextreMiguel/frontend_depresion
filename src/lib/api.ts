@@ -265,6 +265,8 @@ export async function signupAdmin(payload: {
   email: string;
   password: string;
   name: string;
+  adminInviteCode: string;
+  role: "admin" | "psicologo";
 }): Promise<AuthSession> {
   const response = await fetch(apiPath("/signup"), {
     method: "POST",
@@ -273,6 +275,8 @@ export async function signupAdmin(payload: {
       email: payload.email,
       password: payload.password,
       name: payload.name,
+      admin_invite_code: payload.adminInviteCode,
+      rol: payload.role,
     }),
   });
 
@@ -297,11 +301,14 @@ export async function forgotPassword(email: string): Promise<{ detail: string }>
   return response.json();
 }
 
-export async function resetPassword(password: string): Promise<{ detail: string }> {
+export async function resetPassword(password: string, resetToken: string): Promise<{ detail: string }> {
+  // El token de restablecimiento (recibido por correo, no la sesión activa del
+  // usuario) es el que autoriza el cambio — antes se usaba por error el token de
+  // sesión ya logueada (_getAccessToken()), rompiendo el flujo real de HU0003.
   const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ new_password: password, access_token: _getAccessToken() || "" }),
+    body: JSON.stringify({ new_password: password, access_token: resetToken }),
   });
   if (!response.ok) {
     throw new Error("Error al restablecer la contraseña. El enlace puede haber expirado.");

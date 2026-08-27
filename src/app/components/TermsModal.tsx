@@ -5,9 +5,10 @@ import { ShieldCheck, AlertCircle } from "lucide-react";
 
 interface TermsModalProps {
   onAccept: () => void;
+  onReject: () => void;
 }
 
-export function TermsModal({ onAccept }: TermsModalProps) {
+export function TermsModal({ onAccept, onReject }: TermsModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [tcVersion, setTcVersion] = useState("1.0");
   const [tcContent, setTcContent] = useState("");
@@ -51,10 +52,8 @@ export function TermsModal({ onAccept }: TermsModalProps) {
       setIsOpen(false);
       onAccept();
     } catch (err) {
-      // Local fallback anyway to allow user to work
-      localStorage.setItem("mindcheck_tc_accepted", tcVersion);
-      setIsOpen(false);
-      onAccept();
+      // T-011: no se asume aceptado si el backend no pudo registrarlo.
+      toast.error("No se pudo registrar tu aceptación en el servidor. Intenta nuevamente.");
     }
   };
 
@@ -116,7 +115,8 @@ export function TermsModal({ onAccept }: TermsModalProps) {
         <div className="flex gap-4">
           <button
             onClick={() => {
-              toast.warning("El acceso ha sido bloqueado por rechazo de términos.");
+              toast.warning("Has rechazado los términos y condiciones. No es posible continuar.");
+              onReject();
             }}
             className="flex-1 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 py-3.5 rounded-xl font-medium text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
           >

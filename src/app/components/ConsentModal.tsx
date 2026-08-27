@@ -62,9 +62,10 @@ export function ConsentModal({ open, accessToken, onAccept, onCancel }: ConsentM
       setIsOpen(false);
       onAccept();
     } catch (err) {
-      toast.error("No se pudo registrar en el servidor, pero procedemos localmente.");
-      setIsOpen(false);
-      onAccept();
+      // T-011: si el registro del consentimiento falla, NO se permite continuar
+      // sin evidencia real (antes se avanzaba igual, dejando la evaluación sin
+      // respaldo legal del consentimiento — ver Ley N.° 29733).
+      toast.error("No se pudo registrar tu consentimiento en el servidor. Intenta nuevamente.");
     } finally {
       setIsLoading(false);
     }

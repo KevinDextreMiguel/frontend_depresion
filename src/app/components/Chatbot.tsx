@@ -205,7 +205,7 @@ export function Chatbot() {
     }
 
     if (lowerInput.includes("suicidio") || lowerInput.includes("hacerme daño") || lowerInput.includes("quitarme la vida")) {
-      botResponse = "⚠️ Si estás en crisis o tienes pensamientos de hacerte daño, por favor contacta inmediatamente:\n\n📞 Línea de Prevención del Suicidio: 0800-00-232 (24/7 gratuito)\n📞 Línea 113 opción 5 - MINSA (24/7)\n📞 Emergencias: 105 o 106\n\nNo estás solo/a. Hay profesionales disponibles para ayudarte.";
+      botResponse = "Si estás en crisis o tienes pensamientos de hacerte daño, por favor contacta inmediatamente:\n\nLínea de Prevención del Suicidio: 0800-00-232 (24/7 gratuito)\nLínea 113 opción 5 - MINSA (24/7)\nEmergencias: 105 o 106\n\nNo estás solo/a. Hay profesionales disponibles para ayudarte.";
     }
 
     const botMessage: Message = {

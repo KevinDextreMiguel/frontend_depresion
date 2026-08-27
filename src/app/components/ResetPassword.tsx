@@ -108,6 +108,7 @@ export function ResetPassword({ onBack }: ResetPasswordProps) {
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
                       type="password"
+                      data-testid="reset-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
@@ -122,6 +123,7 @@ export function ResetPassword({ onBack }: ResetPasswordProps) {
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
                       type="password"
+                      data-testid="reset-confirm-password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
@@ -131,13 +133,14 @@ export function ResetPassword({ onBack }: ResetPasswordProps) {
                 </div>
 
                 {error && (
-                  <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 rounded-xl p-4 text-sm text-red-600">
+                  <div data-testid="reset-error" className="bg-red-50 dark:bg-red-500/10 border border-red-200 rounded-xl p-4 text-sm text-red-600">
                     {error}
                   </div>
                 )}
 
                 <button
                   type="submit"
+                  data-testid="reset-submit"
                   disabled={loading || !token}
                   className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#4A90E2] to-indigo-600 text-white font-bold py-3.5 rounded-xl disabled:opacity-70"
                 >

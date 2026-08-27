@@ -19,9 +19,11 @@ import { clearAuthSession, isAuthenticated, getAccessToken, getAuthUser } from "
 import { TermsModal } from "./components/TermsModal";
 import { ConsentModal } from "./components/ConsentModal";
 import { PrivacyConsentSettings } from "./components/PrivacyConsentSettings";
+import { ForgotPassword } from "./components/ForgotPassword";
+import { ResetPassword } from "./components/ResetPassword";
 import { Menu as MenuIcon, X as XIcon, User as UserIcon, LogOut as LogOutIcon } from "lucide-react";
 
-type Screen = "landing" | "instructions" | "questionnaire" | "results" | "auth" | "admin-panel" | "student-panel" | "support" | "student-evolution" | "privacy-consent";
+type Screen = "landing" | "instructions" | "questionnaire" | "results" | "auth" | "admin-panel" | "student-panel" | "support" | "student-evolution" | "privacy-consent" | "forgot-password" | "reset-password";
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("landing");
@@ -41,7 +43,15 @@ export default function App() {
 
   useEffect(() => {
     checkApiHealth().then(setApiOnline);
-    
+
+    // HU0003: si el usuario llega desde el enlace de recuperación de contraseña
+    // (Supabase redirige con #access_token=... en la URL), mostrar directamente
+    // la pantalla de restablecimiento en vez del flujo normal.
+    if (window.location.hash.includes("access_token")) {
+      setCurrentScreen("reset-password");
+      return;
+    }
+
     // Auto-login check: redirect to corresponding panel based on role
     if (isAuthenticated()) {
       const user = getAuthUser();
@@ -172,7 +182,11 @@ export default function App() {
   };
 
   const handleNavigate = (screen: string) => {
-    if (screen === "admin-login" || screen === "student-register" || screen === "forgot-password" || screen === "reset-password") {
+    if (screen === "forgot-password" || screen === "reset-password") {
+      setCurrentScreen(screen as Screen);
+      return;
+    }
+    if (screen === "admin-login" || screen === "student-register") {
       setCurrentScreen("auth");
     } else {
       setCurrentScreen(screen as Screen);
@@ -183,10 +197,12 @@ export default function App() {
     const user = getAuthUser();
     if (user?.rol === "admin" || user?.rol === "psicologo") {
       setCurrentScreen("admin-panel");
-      toast.success(`Bienvenido al portal administrativo, ${user.nombre || "Administrador"}`);
+      const portal = user.rol === "psicologo" ? "portal clínico" : "portal administrativo";
+      const nombrePorDefecto = user.rol === "psicologo" ? "Doctor(a)" : "Administrador(a)";
+      toast.success(`Bienvenido al ${portal}, ${user.nombre || nombrePorDefecto}`);
     } else if (user?.rol === "estudiante") {
       setCurrentScreen("student-panel");
-      toast.success(`¡Hola de nuevo, ${user?.nombre || "Estudiante"}! 👋`);
+      toast.success(`¡Hola de nuevo, ${user?.nombre || "Estudiante"}!`);
     } else {
       setCurrentScreen("landing");
       toast.success(`¡Bienvenido!`);
@@ -541,7 +557,16 @@ export default function App() {
               <UnifiedAuthFlow
                 onAuthSuccess={handleLoginSuccess}
                 onBack={handleReturnHome}
+                onNavigate={handleNavigate}
               />
+            )}
+
+            {currentScreen === "forgot-password" && (
+              <ForgotPassword onBack={() => setCurrentScreen("auth")} />
+            )}
+
+            {currentScreen === "reset-password" && (
+              <ResetPassword onBack={() => { window.history.replaceState({}, document.title, window.location.pathname); setCurrentScreen("auth"); }} />
             )}
 
             {currentScreen === "admin-panel" && <AdminPanel onLogout={handleLogout} />}
@@ -634,7 +659,10 @@ export default function App() {
 
 
       <InfoDialog open={showInfo} onOpenChange={setShowInfo} />
-      <TermsModal onAccept={() => console.log("T&C Accepted")} />
+      <TermsModal
+        onAccept={() => console.log("T&C Accepted")}
+        onReject={() => handleLogout("Debes aceptar los términos y condiciones para usar la plataforma.")}
+      />
       <ConsentModal 
         open={showConsent} 
         accessToken={getAccessToken() || ""} 

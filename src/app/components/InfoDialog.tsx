@@ -107,22 +107,22 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
             <div className="text-sm text-gray-700 space-y-2">
               <p>
                 <strong>Servicio Psicológico ULIMA:</strong><br />
-                📞 437-6767 anexo 30074
+                437-6767 anexo 30074
               </p>
               <p>
                 <strong>Línea de Prevención del Suicidio:</strong><br />
-                📞 0800-00-232 (24/7 gratuito)
+                0800-00-232 (24/7 gratuito)
               </p>
               <p>
                 <strong>Línea 113 - Salud Mental MINSA:</strong><br />
-                📞 113 opción 5 (24/7)
+                113 opción 5 (24/7)
               </p>
             </div>
           </div>
 
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-sm text-red-800">
-              <strong>⚠️ Descargo de responsabilidad:</strong> Este cuestionario es una herramienta
+              <strong>Descargo de responsabilidad:</strong> Este cuestionario es una herramienta
               de tamizaje, NO un diagnóstico clínico. Solo un profesional de salud mental calificado
               puede realizar un diagnóstico formal. Si experimentas síntomas severos o pensamientos
               de hacerte daño, busca ayuda profesional de inmediato.

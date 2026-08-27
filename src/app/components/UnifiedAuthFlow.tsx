@@ -12,6 +12,7 @@ type AuthMode = "role-select" | "student-login" | "student-register" | "admin-lo
 interface UnifiedAuthFlowProps {
   onAuthSuccess: () => void;
   onBack?: () => void;
+  onNavigate?: (screen: string) => void;
 }
 
 interface FormData {
@@ -22,9 +23,10 @@ interface FormData {
   carrera: string;
   universidad: string;
   confirmPassword?: string;
+  adminInviteCode?: string;
 }
 
-export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps) {
+export function UnifiedAuthFlow({ onAuthSuccess, onBack, onNavigate }: UnifiedAuthFlowProps) {
   const [mode, setMode] = useState<AuthMode>("role-select");
   const [formData, setFormData] = useState<FormData>({
     email: "",
@@ -33,7 +35,9 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
     edad: "",
     carrera: "",
     universidad: "",
+    adminInviteCode: "",
   });
+  const [staffRole, setStaffRole] = useState<"admin" | "psicologo">("psicologo");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -48,6 +52,7 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
       edad: "",
       carrera: "",
       universidad: "",
+      adminInviteCode: "",
     });
     setError("");
     setErrors({});
@@ -189,6 +194,11 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
       return;
     }
 
+    if (!formData.adminInviteCode) {
+      setErrors({ adminInviteCode: "El código de institución es obligatorio" });
+      return;
+    }
+
     setLoading(true);
     setError("");
     try {
@@ -196,6 +206,8 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
         email: formData.email,
         password: formData.password,
         name: formData.nombre,
+        adminInviteCode: formData.adminInviteCode,
+        role: staffRole,
       });
       setAuthSession(session);
       setMode("success");
@@ -261,8 +273,8 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
               >
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
-                    <h3 className="font-semibold text-slate-900 dark:text-white text-lg">Portal Administrativo</h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">Acceso para administradores</p>
+                    <h3 className="font-semibold text-slate-900 dark:text-white text-lg">Portal Clínico y Administrativo</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Acceso para administradores y psicólogos</p>
                   </div>
                   <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
                     <Shield size={20} className="text-purple-600 dark:text-purple-400" />
@@ -305,6 +317,7 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
                 <input
                   type="email"
                   name="email"
+                  data-testid="login-email"
                   value={formData.email}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded-lg border-2 bg-slate-50 dark:bg-slate-800 transition-colors ${
@@ -325,6 +338,7 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
                   <input
                     type={showPassword ? "text" : "password"}
                     name="password"
+                    data-testid="login-password"
                     value={formData.password}
                     onChange={handleInputChange}
                     className={`w-full px-4 py-3 rounded-lg border-2 bg-slate-50 dark:bg-slate-800 transition-colors ${
@@ -343,11 +357,20 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
                   </button>
                 </div>
                 {errors.password && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.password}</p>}
+                <button
+                  type="button"
+                  data-testid="link-forgot-password"
+                  onClick={() => { resetForm(); onNavigate ? onNavigate("forgot-password") : setError("Recuperación de contraseña no disponible en este momento."); }}
+                  className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline mt-2"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
               </div>
             </div>
 
             <button
               type="submit"
+              data-testid="login-submit"
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
@@ -388,6 +411,7 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
                 <input
                   type="text"
                   name="nombre"
+                  data-testid="register-nombre"
                   value={formData.nombre}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded-lg border-2 bg-slate-50 dark:bg-slate-800 transition-colors ${
@@ -407,6 +431,7 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
                 <input
                   type="email"
                   name="email"
+                  data-testid="register-email"
                   value={formData.email}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded-lg border-2 bg-slate-50 dark:bg-slate-800 transition-colors ${
@@ -426,6 +451,7 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
                 <input
                   type="number"
                   name="edad"
+                  data-testid="register-edad"
                   value={formData.edad}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded-lg border-2 bg-slate-50 dark:bg-slate-800 transition-colors ${
@@ -447,6 +473,7 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
                 <input
                   type="text"
                   name="carrera"
+                  data-testid="register-carrera"
                   value={formData.carrera}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors"
@@ -461,6 +488,7 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
                 <input
                   type="text"
                   name="universidad"
+                  data-testid="register-universidad"
                   value={formData.universidad}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-colors"
@@ -476,6 +504,7 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
                   <input
                     type={showPassword ? "text" : "password"}
                     name="password"
+                    data-testid="register-password"
                     value={formData.password}
                     onChange={handleInputChange}
                     className={`w-full px-4 py-3 rounded-lg border-2 bg-slate-50 dark:bg-slate-800 transition-colors ${
@@ -504,6 +533,7 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     name="confirmPassword"
+                    data-testid="register-confirm-password"
                     value={formData.confirmPassword || ""}
                     onChange={(e) => {
                       setFormData(prev => ({ ...prev, confirmPassword: e.target.value }));
@@ -536,6 +566,7 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
 
             <button
               type="submit"
+              data-testid="register-submit"
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
@@ -557,8 +588,8 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
         {mode === "admin-login" && (
           <form onSubmit={handleAdminLogin} className="space-y-6 animate-in fade-in">
             <div className="text-center space-y-1">
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Portal Administrativo</h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm">Acceso para administradores</p>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Portal Clínico y Administrativo</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm">Acceso para administradores y psicólogos</p>
             </div>
 
             {error && (
@@ -636,12 +667,12 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
           </form>
         )}
 
-        {/* Admin Register */}
+        {/* Admin/Psicologo Register */}
         {mode === "admin-register" && (
           <form onSubmit={handleAdminRegister} className="space-y-6 animate-in fade-in">
             <div className="text-center space-y-1">
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Crear Cuenta Admin</h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm">Portal Administrativo</p>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Crear Cuenta de Personal</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm">Portal Clínico y Administrativo</p>
             </div>
 
             {error && (
@@ -652,6 +683,36 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
             )}
 
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Tipo de cuenta *
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStaffRole("psicologo")}
+                    className={`px-4 py-3 rounded-lg border-2 text-sm font-semibold transition-colors ${
+                      staffRole === "psicologo"
+                        ? "border-purple-500 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                        : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
+                    }`}
+                  >
+                    Psicólogo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStaffRole("admin")}
+                    className={`px-4 py-3 rounded-lg border-2 text-sm font-semibold transition-colors ${
+                      staffRole === "admin"
+                        ? "border-purple-500 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                        : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"
+                    }`}
+                  >
+                    Administrador
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   Nombre completo *
@@ -716,6 +777,26 @@ export function UnifiedAuthFlow({ onAuthSuccess, onBack }: UnifiedAuthFlowProps)
                   </button>
                 </div>
                 {errors.password && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.password}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Código de institución *
+                </label>
+                <input
+                  type="password"
+                  name="adminInviteCode"
+                  value={formData.adminInviteCode}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 rounded-lg border-2 bg-slate-50 dark:bg-slate-800 transition-colors ${
+                    errors.adminInviteCode
+                      ? "border-red-500 dark:border-red-400"
+                      : "border-slate-200 dark:border-slate-700 focus:border-purple-500 dark:focus:border-purple-400"
+                  } outline-none`}
+                  placeholder="Proporcionado por la institución"
+                />
+                {errors.adminInviteCode && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.adminInviteCode}</p>}
+                <p className="text-xs text-slate-400 mt-1">Solo el personal autorizado por la institución puede crear cuentas de administrador o psicólogo.</p>
               </div>
             </div>
 

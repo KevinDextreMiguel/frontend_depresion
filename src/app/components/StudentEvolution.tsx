@@ -304,7 +304,7 @@ export function StudentEvolution({ onBack }: { onBack: () => void }) {
             {/* Nota informativa */}
             <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded-2xl p-5">
               <p className="text-sm text-blue-700 dark:text-blue-400 text-center">
-                💙 Este historial es privado y está cifrado. Solo tú y los profesionales de salud mental asignados pueden verlo.
+                Este historial es privado. Solo tú y los profesionales de salud mental asignados pueden verlo.
               </p>
             </div>
           </div>

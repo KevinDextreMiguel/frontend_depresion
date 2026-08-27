@@ -103,6 +103,7 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
                       type="email"
+                      data-testid="forgot-email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -112,13 +113,14 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
                 </div>
 
                 {error && (
-                  <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 rounded-xl p-4 text-sm text-red-600">
+                  <div data-testid="forgot-error" className="bg-red-50 dark:bg-red-500/10 border border-red-200 rounded-xl p-4 text-sm text-red-600">
                     {error}
                   </div>
                 )}
 
                 <button
                   type="submit"
+                  data-testid="forgot-submit"
                   disabled={loading}
                   className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#4A90E2] to-indigo-600 text-white font-bold py-3.5 rounded-xl disabled:opacity-70"
                 >

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { getAccessToken, isAuthenticated, getAuthUser, updateAuthUser } from "@/lib/auth";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
@@ -180,6 +180,22 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [trendsCareer, setTrendsCareer] = useState("");
 
   const [effectiveness, setEffectiveness] = useState<any[]>([]);
+  // T-006: el backend expone `score_diff` (post - pre) por intervención individual,
+  // no un `mejora_promedio` ya agregado — se calcula aquí, agrupando por tipo.
+  const effectivenessByType = useMemo(() => {
+    const groups = new Map<string, number[]>();
+    for (const item of effectiveness) {
+      if (item?.score_diff === null || item?.score_diff === undefined) continue;
+      const key = item.tipo_intervencion || "Sin especificar";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(Number(item.score_diff));
+    }
+    return Array.from(groups.entries()).map(([tipo_intervencion, diffs]) => ({
+      tipo_intervencion,
+      // score_diff negativo = el puntaje bajó tras la intervención = mejora.
+      mejora_promedio: Number((-(diffs.reduce((a, b) => a + b, 0) / diffs.length)).toFixed(2)),
+    }));
+  }, [effectiveness]);
   const [loadingEffectiveness, setLoadingEffectiveness] = useState(false);
 
   const [exportStart, setExportStart] = useState("");
@@ -193,6 +209,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [liveMonitoring, setLiveMonitoring] = useState<any>(null);
   const [loadingMonitoring, setLoadingMonitoring] = useState(false);
   const monitoringInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const notificationsInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [systemSettings, setSystemSettings] = useState<any[]>([]);
   const [loadingSettings, setLoadingSettings] = useState(false);
@@ -492,18 +509,20 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
       setLoadingKPIs(true);
       const [kpis, trendsAdv, eff] = await Promise.all([
         fetchDashboardKPIs(token, start, end),
-        fetchTrendsAdvanced(token),
+        fetchTrendsAdvanced(token, trendsCareer || undefined),
         fetchInterventionsEffectiveness(token),
       ]);
       setDashboardKPIs(kpis);
-      setTrendsAdvanced(Array.isArray(trendsAdv) ? trendsAdv : []);
+      // T-006: el backend devuelve { by_month, by_career, by_university }, no un
+      // array plano — se usa by_month (label/count/avg_score) como serie principal.
+      setTrendsAdvanced(Array.isArray(trendsAdv?.by_month) ? trendsAdv.by_month : []);
       setEffectiveness(Array.isArray(eff) ? eff : []);
     } catch (err) {
       toast.error("Error al cargar KPIs del dashboard.");
     } finally {
       setLoadingKPIs(false);
     }
-  }, []);
+  }, [trendsCareer]);
 
   const loadLiveMonitoring = useCallback(async () => {
     const token = getAccessToken();
@@ -966,6 +985,17 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     }
   };
 
+  // T-009: las alertas de casos críticos (HU0009 CA3, HU0021 CA2, HU0030) deben
+  // ser visibles sin importar la pestaña activa — antes esta carga nunca se
+  // disparaba desde ningún lado y el panel de notificaciones era código muerto.
+  useEffect(() => {
+    loadNotifications();
+    notificationsInterval.current = setInterval(loadNotifications, 30000);
+    return () => {
+      if (notificationsInterval.current) clearInterval(notificationsInterval.current);
+    };
+  }, [loadNotifications]);
+
   const loadChatbotResponses = useCallback(async () => {
     const token = getAccessToken();
     if (!token) return;
@@ -1143,12 +1173,26 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     }
   };
 
-  const renderOverview = () => (
+  const renderOverview = () => {
+    const currentUser = getAuthUser();
+    const hour = new Date().getHours();
+    const saludo = hour < 12 ? "Buenos días" : hour < 19 ? "Buenas tardes" : "Buenas noches";
+    const nombreMostrado = currentUser?.nombre
+      ? currentUser.rol === "psicologo"
+        ? `Dr(a). ${currentUser.nombre}`
+        : currentUser.nombre
+      : currentUser?.rol === "psicologo"
+        ? "Doctor(a)"
+        : "Administrador(a)";
+
+    return (
     <>
       <div className="space-y-2">
-        <h2 className="font-h1 text-h1 text-on-background dark:text-white">Buenos días, Dra. Ana</h2>
+        <h2 className="font-h1 text-h1 text-on-background dark:text-white">{saludo}, {nombreMostrado}</h2>
         <p className="font-body-lg text-body-lg text-tertiary dark:text-slate-400 max-w-2xl">
-          Aquí tienes un resumen de las evaluaciones de bienestar en el campus durante este semestre.
+          {currentUser?.rol === "psicologo"
+            ? "Aquí tienes un resumen de tus pacientes asignados durante este semestre."
+            : "Aquí tienes un resumen de las evaluaciones de bienestar en el campus durante este semestre."}
         </p>
       </div>
 
@@ -1301,7 +1345,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                             {getPriorityLabel(alert.prioridad)}
                           </p>
                           <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                            {alert.nivel_riesgo.replace(/_/g, " ")}{alert.alerta_suicidio ? " ⚠" : ""}
+                            {alert.nivel_riesgo.replace(/_/g, " ")}{alert.alerta_suicidio ? " - Riesgo suicida" : ""}
                           </p>
                         </div>
                       </div>
@@ -1364,7 +1408,8 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
         </div>
       </div>
     </>
-  );
+    );
+  };
 
   const analyticsTrends =
     trendData.length > 0
@@ -1562,7 +1607,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                   {studentHistory.map((item) => (
                     <div key={item.fecha + item.nivel_riesgo} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
                       <div className="flex items-center justify-between gap-4">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.nivel_riesgo}{item.alerta_suicidio ? " ⚠" : ""}</p>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.nivel_riesgo}{item.alerta_suicidio ? " - Riesgo suicida" : ""}</p>
                         <span className="text-xs text-slate-500 dark:text-slate-400">
                           {new Date(item.fecha).toLocaleDateString("es-PE", { dateStyle: "medium" })}
                         </span>
@@ -1595,6 +1640,21 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                                 </li>
                               ))}
                             </ul>
+                          </div>
+                        )}
+                        {item.interpretabilidad && (
+                          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Factores que influyeron en la predicción (HU0018)</p>
+                            <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                              {item.interpretabilidad.ml_prediction && (
+                                <li>Predicción del modelo: <span className="font-semibold">{item.interpretabilidad.ml_prediction}</span>{item.interpretabilidad.ml_probability != null ? ` (${(item.interpretabilidad.ml_probability * 100).toFixed(0)}%)` : ""}</li>
+                              )}
+                              {item.interpretabilidad.horas_sueno != null && <li>Horas de sueño reportadas: {item.interpretabilidad.horas_sueno}</li>}
+                              {item.interpretabilidad.calidad_sueno && <li>Calidad de sueño: {item.interpretabilidad.calidad_sueno}</li>}
+                              {item.interpretabilidad.mspss_total != null && <li>Soporte social percibido (MSPSS): {item.interpretabilidad.mspss_total}</li>}
+                              {item.interpretabilidad.historia_salud_mental && <li>Historia de salud mental: {item.interpretabilidad.historia_salud_mental}</li>}
+                            </ul>
+                            <p className="mt-2 text-[11px] text-slate-400">Nota: explicación basada en las variables de entrada del modelo, no en una atribución de importancia técnica (SHAP) del modelo entrenado.</p>
                           </div>
                         )}
                       </div>
@@ -1782,7 +1842,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                         }`}
                       >
                         {r.nivel_riesgo}
-                        {r.alerta_suicidio ? " ⚠" : ""}
+                        {r.alerta_suicidio ? " - Riesgo suicida" : ""}
                       </span>
                     </td>
                     <td className="px-6 py-4 dark:text-slate-300">
@@ -1889,7 +1949,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${patient.alerta_suicidio ? "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"}`}>
                         {patient.nivel_riesgo}
-                        {patient.alerta_suicidio ? " ⚠" : ""}
+                        {patient.alerta_suicidio ? " - Riesgo suicida" : ""}
                       </span>
                     </td>
                     <td className="px-6 py-4 dark:text-slate-300">{patient.puntaje} / 27</td>
@@ -2848,38 +2908,54 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
           <div className="text-center py-12 text-slate-400">No hay KPIs disponibles.</div>
         )}
 
-        {/* Trends Advanced */}
-        {trendsAdvanced.length > 0 && (
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
-            <h3 className="font-bold text-slate-800 dark:text-white mb-4">Tendencias por Carrera / Semana</h3>
-            <div className="mb-3">
-              <input value={trendsCareer} onChange={(e) => setTrendsCareer(e.target.value)} placeholder="Filtrar carrera..." className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm w-64" />
-            </div>
+        {/* Trends Advanced (HU0038) */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+          <h3 className="font-bold text-slate-800 dark:text-white mb-4">Tendencias por Periodo / Carrera</h3>
+          <div className="mb-3 flex gap-2">
+            <input
+              value={trendsCareer}
+              onChange={(e) => setTrendsCareer(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") loadDashboardKPIs(kpiStartDate || undefined, kpiEndDate || undefined); }}
+              placeholder="Filtrar por carrera..."
+              className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-lg px-3 py-1.5 text-sm w-64"
+            />
+            <button
+              onClick={() => loadDashboardKPIs(kpiStartDate || undefined, kpiEndDate || undefined)}
+              disabled={loadingKPIs}
+              className="px-3 py-1.5 text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50"
+            >
+              Filtrar
+            </button>
+          </div>
+          {trendsAdvanced.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={trendsAdvanced.filter((d) => !trendsCareer || d.carrera?.toLowerCase().includes(trendsCareer.toLowerCase()))}>
+              <AreaChart data={trendsAdvanced}>
                 <defs>
-                  <linearGradient id="colorSevero" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorAvgScore" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
                     <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="semana" tick={{ fontSize: 10 }} />
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip />
-                <Area type="monotone" dataKey="total" stroke="#4A90E2" fill="#4A90E2" fillOpacity={0.1} name="Total" />
-                <Area type="monotone" dataKey="severos" stroke="#ef4444" fill="url(#colorSevero)" name="Severos" />
+                <Area type="monotone" dataKey="count" stroke="#4A90E2" fill="#4A90E2" fillOpacity={0.1} name="Evaluaciones" />
+                <Area type="monotone" dataKey="avg_score" stroke="#ef4444" fill="url(#colorAvgScore)" name="Puntaje promedio" />
               </AreaChart>
             </ResponsiveContainer>
-          </div>
-        )}
+          ) : (
+            <div className="text-center py-8 text-slate-400 text-sm">No hay tendencias disponibles para el filtro aplicado.</div>
+          )}
+        </div>
 
         {/* Interventions effectiveness */}
-        {effectiveness.length > 0 && (
+        {effectivenessByType.length > 0 && (
           <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
             <h3 className="font-bold text-slate-800 dark:text-white mb-4">Efectividad de Intervenciones</h3>
+            <p className="text-xs text-slate-400 mb-3">Reducción promedio del puntaje PHQ-9 entre la evaluación previa y posterior a cada tipo de intervención (valores positivos = mejora).</p>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart layout="vertical" data={effectiveness.slice(0, 8)} margin={{ left: 30 }}>
+              <BarChart layout="vertical" data={effectivenessByType} margin={{ left: 30 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis type="number" tick={{ fontSize: 11 }} />
                 <YAxis dataKey="tipo_intervencion" type="category" tick={{ fontSize: 11 }} width={120} />
@@ -3010,13 +3086,13 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
         <div className="text-center py-16 text-slate-400"><span className="material-symbols-outlined animate-spin text-4xl">refresh</span><p className="mt-2">Conectando...</p></div>
       ) : liveMonitoring ? (
         <>
-          {/* System Status */}
+          {/* System Status — T-006: nombres de campo alineados con LiveMonitoringItem real */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "Usuarios Activos (24h)", value: liveMonitoring.usuarios_activos_24h ?? "—", icon: "person", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-500/10" },
-              { label: "Evaluaciones Hoy", value: liveMonitoring.evaluaciones_hoy ?? "—", icon: "today", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
-              { label: "Alertas Críticas Activas", value: liveMonitoring.alertas_criticas_activas ?? "—", icon: "emergency", color: "text-red-600 dark:text-red-400", bg: "bg-red-50 dark:bg-red-500/10" },
-              { label: "Sesiones Abiertas", value: liveMonitoring.sesiones_abiertas ?? "—", icon: "manage_accounts", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-500/10" },
+              { label: "Sesiones Activas (estimado)", value: liveMonitoring.sessions_active ?? "—", icon: "person", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-500/10" },
+              { label: "Requests Totales", value: liveMonitoring.total_requests ?? "—", icon: "today", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
+              { label: "CPU (estimado)", value: liveMonitoring.cpu_usage_pct !== undefined ? `${liveMonitoring.cpu_usage_pct}%` : "—", icon: "memory", color: "text-red-600 dark:text-red-400", bg: "bg-red-50 dark:bg-red-500/10" },
+              { label: "Memoria (estimado)", value: liveMonitoring.memory_usage_mb !== undefined ? `${liveMonitoring.memory_usage_mb} MB` : "—", icon: "manage_accounts", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-500/10" },
             ].map((item) => (
               <div key={item.label} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-5 shadow-sm">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${item.bg}`}>
@@ -3027,12 +3103,34 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
               </div>
             ))}
           </div>
+          <p className="text-xs text-slate-400 -mt-2">
+            "Estimado" indica una métrica derivada del volumen de uso registrado, no telemetría directa del servidor (CPU/memoria reales del proceso).
+          </p>
+
+          {/* Alertas de uso anómalo (HU0042 CA2) — antes nunca se renderizaban */}
+          {Array.isArray(liveMonitoring.alerts) && liveMonitoring.alerts.length > 0 && (
+            <div className="space-y-2">
+              {liveMonitoring.alerts.map((a: any, idx: number) => (
+                <div
+                  key={idx}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
+                    a.level === "critical"
+                      ? "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-500/30 text-red-800 dark:text-red-300"
+                      : "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-500/30 text-amber-800 dark:text-amber-300"
+                  }`}
+                >
+                  <span className="material-symbols-outlined">warning</span>
+                  <p className="text-sm font-medium">{a.message || JSON.stringify(a)}</p>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Live Indicator */}
           <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/30 rounded-xl">
             <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"></span>
             <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
-              Sistema operativo · Última actualización: {liveMonitoring.timestamp ? new Date(liveMonitoring.timestamp).toLocaleTimeString("es-PE") : "ahora"}
+              Sistema operativo · Actualiza cada 30s
             </p>
           </div>
 
@@ -3102,6 +3200,12 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
           {mlMetrics.length > 0 && (
             <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
               <h3 className="font-bold text-slate-800 dark:text-white mb-4">Evolución de Métricas del Modelo</h3>
+              {mlMetrics.some((m: any) => m.is_simulated) && (
+                <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs">
+                  <span className="material-symbols-outlined text-sm">warning</span>
+                  <span>Las versiones sin un evento de entrenamiento auditado aparecen sin datos (huecos en las líneas) en lugar de valores estimados.</span>
+                </div>
+              )}
               <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={mlMetrics}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -3163,34 +3267,37 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 <table className="min-w-full text-sm">
                   <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider">
                     <tr>
+                      <th className="px-5 py-3 text-left font-semibold">Tipo</th>
                       <th className="px-5 py-3 text-left font-semibold">Versión</th>
                       <th className="px-5 py-3 text-left font-semibold">Fecha</th>
                       <th className="px-5 py-3 text-left font-semibold">Usuario</th>
-                      <th className="px-5 py-3 text-left font-semibold">Muestras</th>
-                      <th className="px-5 py-3 text-left font-semibold">Comentario</th>
-                      <th className="px-5 py-3 text-left font-semibold">Estado</th>
+                      <th className="px-5 py-3 text-left font-semibold">Métricas</th>
+                      <th className="px-5 py-3 text-left font-semibold">Resultado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {mlAudits.map((audit: any, idx) => (
-                      <tr key={audit.id_auditoria ?? idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="px-5 py-3 font-mono text-xs text-blue-600 dark:text-blue-400">{audit.version ?? "—"}</td>
-                        <td className="px-5 py-3 text-slate-600 dark:text-slate-400 text-xs">
-                          {audit.fecha_reentrenamiento ? new Date(audit.fecha_reentrenamiento).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
-                        </td>
-                        <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{audit.usuario_id ?? "Sistema"}</td>
-                        <td className="px-5 py-3 text-slate-700 dark:text-slate-300 font-semibold">{audit.muestras_usadas ?? "—"}</td>
-                        <td className="px-5 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">{audit.comentario ?? "—"}</td>
+                      <tr key={audit.id_log ?? idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="px-5 py-3">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                            audit.resultado === "exitoso" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300" :
-                            audit.resultado === "fallido" ? "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300" :
-                            "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
+                            audit.tipo_evento === "entrenamiento"
+                              ? "bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300"
+                              : "bg-slate-100 text-slate-700 dark:bg-slate-700/40 dark:text-slate-300"
                           }`}>
-                            <span className="material-symbols-outlined text-[12px]">{audit.resultado === "exitoso" ? "check_circle" : audit.resultado === "fallido" ? "error" : "pending"}</span>
-                            {audit.resultado ?? "pendiente"}
+                            {audit.tipo_evento === "entrenamiento" ? "Entrenamiento" : "Predicción"}
                           </span>
                         </td>
+                        <td className="px-5 py-3 font-mono text-xs text-blue-600 dark:text-blue-400">{audit.model_version ?? "—"}</td>
+                        <td className="px-5 py-3 text-slate-600 dark:text-slate-400 text-xs">
+                          {audit.fecha_evento ? new Date(audit.fecha_evento).toLocaleString("es-PE", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
+                        </td>
+                        <td className="px-5 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs">{audit.id_usuario ?? "Sistema (anónimo)"}</td>
+                        <td className="px-5 py-3 text-slate-700 dark:text-slate-300 text-xs">
+                          {audit.precision != null
+                            ? `P:${Number(audit.precision).toFixed(2)} R:${Number(audit.recall).toFixed(2)} F1:${Number(audit.f1_score).toFixed(2)} Acc:${Number(audit.accuracy).toFixed(2)}`
+                            : "—"}
+                        </td>
+                        <td className="px-5 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">{audit.resultado_prediccion ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3339,9 +3446,12 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
             )}
           </div>
 
-          {/* Sección Sistema */}
+          {/* Sección Sistema — completa solo para admin, un psicólogo no necesita
+              configuración, reentrenamiento de modelo, backups, monitoreo ni
+              auditoría ML (todos esos endpoints ya son admin-only en el backend) */}
+          {getAuthUser()?.rol === "admin" && (
           <div className="space-y-1">
-            <button 
+            <button
               type="button"
               onClick={() => setIsSistemaExpanded(!isSistemaExpanded)}
               className="w-full flex items-center justify-between px-4 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
@@ -3354,7 +3464,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
 
             {isSistemaExpanded && (
               <div className="space-y-1 mt-1 transition-all duration-200">
-                <button 
+                <button
                   onClick={() => { setActiveTab("settings"); setIsMobileMenuOpen(false); }}
                   className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "settings" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
                 >
@@ -3362,49 +3472,45 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                   <span className="material-symbols-outlined">settings</span>
                   <span>Configuración</span>
                 </button>
-
-                {getAuthUser()?.rol === "admin" && (
-                  <>
-                    <button 
-                      onClick={() => { setActiveTab("model"); setIsMobileMenuOpen(false); }}
-                      className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "model" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-                    >
-                      {activeTab === "model" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-                      <span className="material-symbols-outlined">auto_graph</span>
-                      <span>Reentrenar Modelo</span>
-                    </button>
-                    <button
-                      id="nav-backups"
-                      onClick={() => { setActiveTab("backups"); setIsMobileMenuOpen(false); }}
-                      className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "backups" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-                    >
-                      {activeTab === "backups" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-                      <span className="material-symbols-outlined">backup</span>
-                      <span>Copias de Seguridad</span>
-                    </button>
-                    <button
-                      id="nav-monitoring"
-                      onClick={() => { setActiveTab("monitoring"); setIsMobileMenuOpen(false); }}
-                      className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "monitoring" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-                    >
-                      {activeTab === "monitoring" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-                      <span className="material-symbols-outlined">monitor_heart</span>
-                      <span className="whitespace-nowrap">Monitoreo en Vivo</span>
-                    </button>
-                    <button
-                      id="nav-mlaudit"
-                      onClick={() => { setActiveTab("mlaudit"); setIsMobileMenuOpen(false); }}
-                      className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "mlaudit" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
-                    >
-                      {activeTab === "mlaudit" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
-                      <span className="material-symbols-outlined">model_training</span>
-                      <span>Auditoría ML</span>
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={() => { setActiveTab("model"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "model" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "model" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">auto_graph</span>
+                  <span>Reentrenar Modelo</span>
+                </button>
+                <button
+                  id="nav-backups"
+                  onClick={() => { setActiveTab("backups"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "backups" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "backups" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">backup</span>
+                  <span>Copias de Seguridad</span>
+                </button>
+                <button
+                  id="nav-monitoring"
+                  onClick={() => { setActiveTab("monitoring"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "monitoring" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "monitoring" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">monitor_heart</span>
+                  <span className="whitespace-nowrap">Monitoreo en Vivo</span>
+                </button>
+                <button
+                  id="nav-mlaudit"
+                  onClick={() => { setActiveTab("mlaudit"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "mlaudit" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "mlaudit" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">model_training</span>
+                  <span>Auditoría ML</span>
+                </button>
               </div>
             )}
           </div>
+          )}
         </nav>
         <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
           <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all font-semibold">
@@ -3440,7 +3546,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 <span className="material-symbols-outlined">menu</span>
               </button>
               <h1 className="text-xl font-bold text-[#4A90E2] dark:text-blue-400 capitalize">
-                {activeTab === "overview" ? "Panel Administrativo" :
+                {activeTab === "overview" ? (getAuthUser()?.rol === "psicologo" ? "Panel Clínico" : "Panel Administrativo") :
                  activeTab === "analytics" ? "Analíticas" :
                  activeTab === "reports" ? "Reportes" :
                  activeTab === "assigned" ? "Pacientes Asignados" :
@@ -3460,8 +3566,57 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 Sistema Online
               </div>
               <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => document.documentElement.classList.toggle('dark')} 
+                <div className="relative">
+                  <button
+                    onClick={() => setIsNotificationPanelOpen((v) => !v)}
+                    className="relative p-2 text-slate-500 dark:text-slate-400 hover:text-[#4A90E2] dark:hover:text-blue-400 transition-colors duration-200 bg-slate-50 dark:bg-slate-800 rounded-full"
+                    title="Alertas de casos críticos"
+                  >
+                    <span className="material-symbols-outlined">notifications</span>
+                    {notificationsList.filter((n) => !n.revisada).length > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold">
+                        {notificationsList.filter((n) => !n.revisada).length}
+                      </span>
+                    )}
+                  </button>
+                  {isNotificationPanelOpen && (
+                    <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-30">
+                      <div className="p-3 border-b border-slate-100 dark:border-slate-800 font-semibold text-sm text-slate-800 dark:text-white flex items-center justify-between">
+                        Alertas de casos críticos
+                        {loadingNotifications && <span className="material-symbols-outlined animate-spin text-sm">refresh</span>}
+                      </div>
+                      {notificationsList.length === 0 ? (
+                        <p className="p-4 text-sm text-slate-400 text-center">No hay alertas críticas activas.</p>
+                      ) : (
+                        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {notificationsList.map((n) => (
+                            <li key={n.id_notificacion} className={`p-3 text-sm ${n.revisada ? "opacity-60" : ""}`}>
+                              <p className="font-semibold text-slate-800 dark:text-white flex items-center gap-1">
+                                {n.alerta_suicidio && <span className="material-symbols-outlined text-red-500 text-sm">emergency</span>}
+                                {n.titulo}
+                              </p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{n.mensaje}</p>
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="text-[11px] text-slate-400">{new Date(n.created_at).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" })}</span>
+                                {!n.revisada && (
+                                  <button
+                                    onClick={() => handleMarkRevisada(n.id_notificacion)}
+                                    disabled={markingRevisada === n.id_notificacion}
+                                    className="text-xs font-semibold text-primary hover:underline disabled:opacity-50"
+                                  >
+                                    Marcar revisado
+                                  </button>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => document.documentElement.classList.toggle('dark')}
                   className="p-2 text-slate-500 dark:text-slate-400 hover:text-[#4A90E2] dark:hover:text-blue-400 transition-colors duration-200 bg-slate-50 dark:bg-slate-800 rounded-full"
                   title="Alternar tema"
                 >

@@ -129,7 +129,7 @@ export function StudentPanel({
       {/* Greeting */}
       <div className="space-y-1">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-          Hola, {user?.nombre || user?.email?.split("@")[0] || "Estudiante"} 👋
+          Hola, {user?.nombre || user?.email?.split("@")[0] || "Estudiante"}
         </h2>
         <p className="text-slate-500 dark:text-slate-400">
           Aquí puedes seguir tu bienestar emocional. Cada evaluación importa.

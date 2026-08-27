@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Menu, X, Loader2, CheckCircle2, RotateCcw, ArrowRight, ArrowLeft } from "lucide-react";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, getAccessToken } from "@/lib/auth";
 import {
   PHQ9_QUESTIONS,
   PHQ9_OPTIONS,
@@ -110,9 +110,13 @@ export function Questionnaire({
   // --- Auto-guardado en el backend ---
   const saveProgressToBackend = useCallback(async () => {
     try {
+      const token = getAccessToken();
       await fetch(`${API_BASE_URL}/api/questionnaire/progress/save`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           session_id: sessionId,
           cuestionario_id: QUESTIONNAIRE_ID,
@@ -138,7 +142,10 @@ export function Questionnaire({
   useEffect(() => {
     const recoverProgress = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/questionnaire/progress/recover/${sessionId}`);
+        const token = getAccessToken();
+        const response = await fetch(`${API_BASE_URL}/api/questionnaire/progress/recover/${sessionId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
         if (response.ok) {
           const data = await response.json();
           const savedObj = data.respuestas;
@@ -179,9 +186,13 @@ export function Questionnaire({
 
   const handleRestart = async () => {
     try {
+      const token = getAccessToken();
       await fetch(`${API_BASE_URL}/api/questionnaire/progress/delete`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ session_id: sessionId })
       });
       localStorage.removeItem(STORAGE_KEY);
@@ -268,6 +279,25 @@ export function Questionnaire({
     newPhq[currentQuestion] = value;
     setPhq9Responses(newPhq);
     flashSaveIndicator();
+
+    // T-010: el chatbot guiado (HU0013/HU0015) escucha estos eventos para avanzar
+    // y ofrecer contención/refuerzo; antes nunca se disparaban desde aquí.
+    try {
+      window.dispatchEvent(new CustomEvent('mindcheck:guide:answered', {
+        detail: { questionIndex: currentQuestion, value }
+      }));
+      window.dispatchEvent(new CustomEvent('mindcheck:progress', {
+        detail: {
+          answeredCount: newPhq.filter((v) => v >= 0).length,
+          questionIndex: currentQuestion,
+          value,
+          // Ítem 9 (índice 8) del PHQ-9: cualquier respuesta positiva es señal de riesgo suicida.
+          suicideAlert: currentQuestion === 8 && value >= 1,
+        }
+      }));
+    } catch {
+      // no-op: el chatbot es un complemento, su ausencia no debe romper el cuestionario
+    }
 
     if (currentQuestion < 8) {
       setTimeout(() => {
