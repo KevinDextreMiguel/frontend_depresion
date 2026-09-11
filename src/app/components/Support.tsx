@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, Menu, X } from "lucide-react";
+import { fetchChatbotResponses, getBotResponse, type ChatbotResponseItem } from "../lib/chatbotEngine";
 
 interface Message {
   id: number;
@@ -7,15 +8,6 @@ interface Message {
   sender: "user" | "bot";
   time?: string;
 }
-
-const FAQ_RESPONSES: Record<string, string> = {
-  "¿qué es phq-9?": "El PHQ-9 es un cuestionario de 9 preguntas validado científicamente para detectar síntomas de depresión. Es utilizado por profesionales de salud mental en todo el mundo.",
-  "¿es confidencial?": "Sí, tus respuestas son completamente anónimas. No solicitamos datos personales identificables.",
-  "¿cuánto tarda?": "El cuestionario toma aproximadamente 3-5 minutos en completarse.",
-  "¿qué hago si tengo síntomas?": "Si tus resultados indican síntomas moderados o severos, te recomendamos contactar a un profesional de salud mental. En la pantalla de resultados encontrarás recursos de apoyo.",
-  "¿es un diagnóstico?": "No, este cuestionario es una herramienta de tamizaje, NO un diagnóstico clínico. Solo un profesional de salud mental puede realizar un diagnóstico formal.",
-  "ayuda": "Puedo ayudarte con preguntas sobre el cuestionario, cómo funciona, confidencialidad, y recursos de apoyo. ¿Qué necesitas saber?"
-};
 
 interface SupportProps {
   onBack: () => void;
@@ -40,7 +32,12 @@ export function Support({ onBack, onNavigate, onStartEvaluation }: SupportProps)
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [chatbotResponses, setChatbotResponses] = useState<ChatbotResponseItem[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetchChatbotResponses().then(setChatbotResponses);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -65,19 +62,7 @@ export function Support({ onBack, onNavigate, onStartEvaluation }: SupportProps)
     setMessages(prev => [...prev, userMessage]);
     setInputValue("");
 
-    const lowerInput = text.toLowerCase();
-    let botResponse = "Entiendo. Aquí hay algunos temas sobre los que puedo ayudarte:\n\n• ¿Qué es el PHQ-9?\n• ¿Es confidencial?\n• ¿Cuánto tiempo tarda?\n• ¿Qué hago si tengo síntomas?\n• ¿Es un diagnóstico?\n\n¿Sobre cuál te gustaría saber más?";
-
-    for (const [keyword, response] of Object.entries(FAQ_RESPONSES)) {
-      if (lowerInput.includes(keyword)) {
-        botResponse = response;
-        break;
-      }
-    }
-
-    if (lowerInput.includes("suicidio") || lowerInput.includes("hacerme daño") || lowerInput.includes("quitarme la vida")) {
-      botResponse = "Si estás en crisis o tienes pensamientos de hacerte daño, por favor contacta inmediatamente:\n\nLínea de Prevención del Suicidio: 0800-00-232 (24/7 gratuito)\nLínea 113 opción 5 - MINSA (24/7)\nEmergencias: 105 o 106\n\nNo estás solo/a. Hay profesionales disponibles para ayudarte.";
-    }
+    const botResponse = getBotResponse(text, chatbotResponses);
 
     const botMessage: Message = {
       id: Date.now() + 1,
@@ -171,9 +156,6 @@ export function Support({ onBack, onNavigate, onStartEvaluation }: SupportProps)
                 <span className="material-symbols-outlined">send</span>
               </button>
             </div>
-            <button className="p-3 border border-outline-variant rounded-lg text-outline hover:text-primary transition-all">
-              <span className="material-symbols-outlined">attach_file</span>
-            </button>
           </div>
         </div>
       </main>

@@ -106,10 +106,6 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
             </h3>
             <div className="text-sm text-gray-700 space-y-2">
               <p>
-                <strong>Servicio Psicológico ULIMA:</strong><br />
-                437-6767 anexo 30074
-              </p>
-              <p>
                 <strong>Línea de Prevención del Suicidio:</strong><br />
                 0800-00-232 (24/7 gratuito)
               </p>

@@ -16,7 +16,6 @@ test.beforeAll(async ({ request }) => {
 test('un estudiante con credenciales válidas inicia sesión y accede a su panel', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
-  await page.getByRole('button', { name: /Estudiante/ }).click();
 
   await page.getByTestId('login-email').fill(TEST_STUDENT.email);
   await page.getByTestId('login-password').fill(TEST_STUDENT.password);

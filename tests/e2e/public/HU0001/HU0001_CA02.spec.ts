@@ -21,8 +21,8 @@ test.beforeAll(async ({ request }) => {
 test('registrarse con un correo ya existente muestra el mensaje correspondiente', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Registrarse para Empezar/ }).click();
-  await page.getByRole('button', { name: /Estudiante/ }).click();
   await page.getByRole('button', { name: /No tienes cuenta/ }).click();
+  await page.getByRole('button', { name: /Estudiante/ }).click();
 
   await page.getByTestId('register-nombre').fill(EXISTING_STUDENT.nombre);
   await page.getByTestId('register-email').fill(EXISTING_STUDENT.email);

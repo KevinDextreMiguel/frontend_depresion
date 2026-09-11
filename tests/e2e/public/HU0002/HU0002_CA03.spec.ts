@@ -10,7 +10,6 @@ import { test, expect } from '@playwright/test';
 test('intentar iniciar sesión sin completar correo y contraseña solicita completarlos', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
-  await page.getByRole('button', { name: /Estudiante/ }).click();
 
   await page.getByTestId('login-submit').click();
 

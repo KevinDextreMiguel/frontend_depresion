@@ -16,8 +16,8 @@ test('un estudiante con datos válidos y completos puede registrarse y recibe co
 
   await page.goto('/');
   await page.getByRole('button', { name: /Registrarse para Empezar/ }).click();
-  await page.getByRole('button', { name: /Estudiante/ }).click();
   await page.getByRole('button', { name: /No tienes cuenta/ }).click();
+  await page.getByRole('button', { name: /Estudiante/ }).click();
 
   await page.getByTestId('register-nombre').fill(TEST_STUDENT.nombre);
   await page.getByTestId('register-email').fill(email);

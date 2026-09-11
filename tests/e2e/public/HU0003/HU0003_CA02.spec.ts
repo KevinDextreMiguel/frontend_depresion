@@ -13,7 +13,6 @@ test('solicitar recuperación con un correo no registrado informa que no existe'
 
   await page.goto('/');
   await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
-  await page.getByRole('button', { name: /Estudiante/ }).click();
   await page.getByTestId('link-forgot-password').click();
 
   await page.getByTestId('forgot-email').fill(email);

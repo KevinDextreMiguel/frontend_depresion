@@ -9,7 +9,9 @@ import { AdminPanel } from "./components/AdminPanel";
 import { StudentPanel } from "./components/StudentPanel";
 import { Chatbot } from "./components/Chatbot";
 import { Support } from "./components/Support";
-import { InfoDialog } from "./components/InfoDialog";
+import { AboutInfo } from "./components/AboutInfo";
+import { PrivacyPolicy } from "./components/PrivacyPolicy";
+import { TermsOfService } from "./components/TermsOfService";
 import { StudentEvolution } from "./components/StudentEvolution";
 import { Toaster } from "./components/ui/sonner";
 import { toast } from "sonner";
@@ -23,7 +25,7 @@ import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
 import { Menu as MenuIcon, X as XIcon, User as UserIcon, LogOut as LogOutIcon } from "lucide-react";
 
-type Screen = "landing" | "instructions" | "questionnaire" | "results" | "auth" | "admin-panel" | "student-panel" | "support" | "student-evolution" | "privacy-consent" | "forgot-password" | "reset-password";
+type Screen = "landing" | "instructions" | "questionnaire" | "results" | "auth" | "admin-panel" | "student-panel" | "support" | "student-evolution" | "privacy-consent" | "forgot-password" | "reset-password" | "about" | "privacy-policy" | "terms-of-service";
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("landing");
@@ -31,7 +33,6 @@ export default function App() {
   const [responses, setResponses] = useState<number[]>([]);
   const [suicideAlert, setSuicideAlert] = useState(false);
   const [interpretability, setInterpretability] = useState<any | null>(null);
-  const [showInfo, setShowInfo] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [showConsent, setShowConsent] = useState(false);
@@ -262,11 +263,11 @@ export default function App() {
                 Inicio
               </a>
               <a
-                className={`font-semibold transition-colors duration-200 ${currentScreen === "instructions" || currentScreen === "questionnaire" || currentScreen === "results" ? "text-primary dark:text-blue-300 border-b-2 border-primary pb-1" : "text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-blue-200"}`}
+                className={`font-semibold transition-colors duration-200 ${currentScreen === "about" ? "text-primary dark:text-blue-300 border-b-2 border-primary pb-1" : "text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-blue-200"}`}
                 href="#"
-                onClick={(e) => { e.preventDefault(); handleStartEvaluation(); }}
+                onClick={(e) => { e.preventDefault(); setCurrentScreen("about"); }}
               >
-                Evaluación
+                Acerca de
               </a>
               {loggedIn && user?.rol === "estudiante" && (
                 <>
@@ -364,9 +365,9 @@ export default function App() {
               <a
                 className="text-slate-500 dark:text-slate-400 font-medium hover:text-primary"
                 href="#"
-                onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); handleStartEvaluation(); }}
+                onClick={(e) => { e.preventDefault(); setIsMobileMenuOpen(false); setCurrentScreen("about"); }}
               >
-                Evaluación
+                Acerca de
               </a>
               {loggedIn && user?.rol === "estudiante" && (
                 <>
@@ -505,13 +506,19 @@ export default function App() {
                 onBack={handleReturnHome}
               />
             )}
+            {currentScreen === "about" && (
+              <AboutInfo
+                onBack={handleReturnHome}
+                onNavigate={handleNavigate}
+              />
+            )}
           </StudentPanel>
         ) : (
           <>
             {currentScreen === "landing" && (
               <LandingPage
                 onStartEvaluation={handleStartEvaluation}
-                onShowInfo={() => setShowInfo(true)}
+                onShowInfo={() => setCurrentScreen("about")}
                 onNavigate={handleNavigate}
                 hasSavedProgress={hasSavedProgress}
                 onContinueEvaluation={() => {
@@ -600,6 +607,21 @@ export default function App() {
                 onBack={() => setCurrentScreen("landing")}
               />
             )}
+
+            {currentScreen === "about" && (
+              <AboutInfo
+                onBack={() => setCurrentScreen("landing")}
+                onNavigate={handleNavigate}
+              />
+            )}
+
+            {currentScreen === "privacy-policy" && (
+              <PrivacyPolicy onBack={() => setCurrentScreen("landing")} />
+            )}
+
+            {currentScreen === "terms-of-service" && (
+              <TermsOfService onBack={() => setCurrentScreen("landing")} />
+            )}
           </>
         )}
       </main>
@@ -619,25 +641,30 @@ export default function App() {
                 <span className="text-lg font-bold text-primary">MindCheck</span>
               </div>
               <p className="text-slate-500 dark:text-slate-400 text-center md:text-left max-w-sm">
-                © 2026 Iniciativa de Salud Mental Universitaria. Para apoyo en crisis, llama al 113.
+                © 2026 Iniciativa de Salud Mental Universitaria.
               </p>
             </div>
             <div className="flex flex-wrap justify-center gap-x-8 gap-y-4">
-              <a className="text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-blue-300 transition-colors" href="#">
+              <a
+                className="text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-blue-300 transition-colors"
+                href="#"
+                onClick={(e) => { e.preventDefault(); setCurrentScreen("privacy-policy"); }}
+              >
                 Política de Privacidad
               </a>
-              <a 
-                className="text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-blue-300 transition-colors" 
+              <a
+                className="text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-blue-300 transition-colors"
                 href="#"
                 onClick={(e) => { e.preventDefault(); setCurrentScreen("support"); }}
               >
                 Contactar Soporte
               </a>
-              <a className="text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-blue-300 transition-colors" href="#">
+              <a
+                className="text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-blue-300 transition-colors"
+                href="#"
+                onClick={(e) => { e.preventDefault(); setCurrentScreen("terms-of-service"); }}
+              >
                 Términos de Servicio
-              </a>
-              <a className="text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-blue-300 transition-colors" href="#">
-                Accesibilidad
               </a>
             </div>
             <div className="flex gap-4">
@@ -658,7 +685,6 @@ export default function App() {
         currentScreen !== "support" && <Chatbot />}
 
 
-      <InfoDialog open={showInfo} onOpenChange={setShowInfo} />
       <TermsModal
         onAccept={() => console.log("T&C Accepted")}
         onReject={() => handleLogout("Debes aceptar los términos y condiciones para usar la plataforma.")}

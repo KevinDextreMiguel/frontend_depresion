@@ -10,8 +10,8 @@ import { test, expect } from '@playwright/test';
 test('intentar registrarse sin completar campos obligatorios muestra los mensajes de validación', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Registrarse para Empezar/ }).click();
-  await page.getByRole('button', { name: /Estudiante/ }).click();
   await page.getByRole('button', { name: /No tienes cuenta/ }).click();
+  await page.getByRole('button', { name: /Estudiante/ }).click();
 
   // No se llena ningún campo — se envía el formulario vacío.
   await page.getByTestId('register-submit').click();

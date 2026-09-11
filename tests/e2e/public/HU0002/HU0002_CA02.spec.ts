@@ -16,7 +16,6 @@ test.beforeAll(async ({ request }) => {
 test('iniciar sesión con contraseña incorrecta muestra un mensaje de error', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
-  await page.getByRole('button', { name: /Estudiante/ }).click();
 
   await page.getByTestId('login-email').fill(TEST_STUDENT.email);
   await page.getByTestId('login-password').fill('ContraseñaIncorrecta999!');

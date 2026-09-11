@@ -66,26 +66,7 @@ export function LandingPage({
                 Conoce más
               </button>
             </div>
-            <div className="flex items-center gap-6 pt-8 border-t border-outline-variant/30">
-              <div className="flex -space-x-3">
-                <img
-                  className="w-10 h-10 rounded-full border-2 border-background"
-                  alt="Estudiante universitario"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaEJ2HAd3buxzI12y-FhBCN8ORSQV46DBJRikRwzUzWLnGN2HaSfUJ-z2XquAqSBDZTdwHS79CLQdIg5AgWoK-lgb_ilRfxbkw4kgwBP_wr1S6F-oQZSyjdwiJyHhHRU207pE-SOq_pjA-iFv8i6rOuXNtaOO7KzXtWtYVQ_D3nMrS5LhYztpxd3RCPjMeHWRJVdBowJQ1h-ZFzKxQnV--Y1N_-RJj7QVFlkovevVlewEXL_ezWYGatfWHh24qLqt134iKxbQEZQ"
-                />
-                <img
-                  className="w-10 h-10 rounded-full border-2 border-background"
-                  alt="Estudiante universitaria en Lima"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDi-iJMxh1_GSuviky7xB8xXWbAVVyIZ1rFxWaEs0UaC8CGW0OeJzSyk_DwERKw4Bqw-ifGxVZUWitXk4SMnOD3_HeMUBq5zGpAWrdKYFiz8K32UIP-qGiv4ANVh8ynBP0ofwHAKAKIYZCFMygLGyf5zt-5SEhvRUHWV4rKA53jg3hBQoXihr-ozoA7iScwtJeuXhSZn8Oi1Kyt41E8X4FbvW8UvgCLwbVY2Bw81ewTwPJMf5G_ARx2Q_EDjcU2gxvZylKDhUPidg"
-                />
-                <img
-                  className="w-10 h-10 rounded-full border-2 border-background"
-                  alt="Joven profesional"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8-mV1HzwuE0sPEqVDPIvxgvjsmxH77Gq2Hi-jqW1zG3gU7oyDxsy2ixzhlkEdVUvw-OJUJv_552_D6dB7BlhPEXQFs_m8y-L8QRK8_g9Bj-YRWWOjS43RhDp-xinvMq9WGVLnbpgZY14U3P3yE2TL1soT65AVqG6fOtBiMdLwA4Zs6C8DC_01kCiXF0uIo5XanJQrNy6igUfFzmxzd_GzLQNjSVIunjMrtfOSh-BVXoALdgAHIbErMQ7ESn9DnAzarEhxbPHqGg"
-                />
-              </div>
-              <p className="text-label-caps font-label-caps text-on-surface-variant">+2,500 estudiantes ya participaron</p>
-            </div>
+            
           </div>
           <div className="flex-1 relative">
             <div className="absolute -top-12 -left-12 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
@@ -158,6 +139,13 @@ export function LandingPage({
                 >
                   Empezar ahora
                 </button>
+                <button
+                  onClick={onShowInfo}
+                  className="mt-3 w-full bg-transparent border border-white/40 text-on-primary py-3 rounded-xl font-button hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-lg">help_outline</span>
+                  ¿Qué es el PHQ-9?
+                </button>
               </div>
               {/* Card 3 */}
               <div className="bg-white p-10 rounded-3xl border border-outline-variant flex flex-col gap-6 hover:border-primary/30 transition-all group">
@@ -218,13 +206,6 @@ export function LandingPage({
               No estás solo.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <a
-                className="bg-error text-on-error px-6 py-3 rounded-full font-button flex items-center gap-2 hover:opacity-90 transition-opacity"
-                href="tel:988"
-              >
-                <span className="material-symbols-outlined">call</span>
-                Llamar al 988 (Línea de Crisis)
-              </a>
               <a
                 className="bg-surface-container text-primary px-6 py-3 rounded-full font-button flex items-center gap-2 hover:bg-surface-variant transition-colors"
                 href="#"

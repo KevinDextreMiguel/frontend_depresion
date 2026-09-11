@@ -199,27 +199,12 @@ export interface AuthSession {
   };
 }
 
-export async function loginStudent(payload: {
-  email: string;
-  password: string;
-}): Promise<AuthSession> {
-  const response = await fetch(apiPath("/login-student"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email: payload.email,
-      password: payload.password,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response));
-  }
-
-  return response.json();
-}
-
-export async function loginAdmin(payload: {
+/**
+ * Inicio de sesión único para todos los roles. El backend (/login) identifica
+ * el rol del usuario autenticado (estudiante, psicólogo o administrador); el
+ * frontend redirige según ese rol devuelto, no según qué formulario se usó.
+ */
+export async function login(payload: {
   email: string;
   password: string;
 }): Promise<AuthSession> {

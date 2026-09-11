@@ -10,8 +10,8 @@ import { test, expect } from '@playwright/test';
 test('registrarse con correo y contraseña de formato inválido muestra las validaciones', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Registrarse para Empezar/ }).click();
-  await page.getByRole('button', { name: /Estudiante/ }).click();
   await page.getByRole('button', { name: /No tienes cuenta/ }).click();
+  await page.getByRole('button', { name: /Estudiante/ }).click();
 
   // Nota: se usa un correo CON "@" pero sin dominio con punto ("correo@invalido")
   // en vez de un correo sin "@". Un correo sin "@" dispara la validación NATIVA

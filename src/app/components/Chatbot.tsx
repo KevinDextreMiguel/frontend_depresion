@@ -2,21 +2,13 @@ import { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send } from "lucide-react";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
-import { API_BASE } from "@/lib/api";
+import { fetchChatbotResponses, getBotResponse, type ChatbotResponseItem } from "../lib/chatbotEngine";
 
 interface Message {
   id: number;
   text: string;
   sender: "user" | "bot";
   time?: string;
-}
-
-interface ChatbotResponseItem {
-  clave: string;
-  texto: string;
-  categoria?: string | null;
-  activa: boolean;
-  orden?: number | null;
 }
 
 export function Chatbot() {
@@ -35,26 +27,8 @@ export function Chatbot() {
   const [guidedMode, setGuidedMode] = useState(false);
   const [guidedIndex, setGuidedIndex] = useState<number | null>(null);
 
-  const getChatbotResponsesUrl = () => {
-    const base = API_BASE?.replace(/\/$/, "") || "";
-    return base
-      ? `${base}/make-server-d427d5bf/chatbot/responses?active=true`
-      : "/make-server-d427d5bf/chatbot/responses?active=true";
-  };
-
   useEffect(() => {
-    const loadResponses = async () => {
-      try {
-        const response = await fetch(getChatbotResponsesUrl());
-        if (!response.ok) return;
-        const results = await response.json();
-        setChatbotResponses(results || []);
-      } catch (error) {
-        console.warn("No se pudieron cargar respuestas dinámicas del chatbot", error);
-      }
-    };
-
-    loadResponses();
+    fetchChatbotResponses().then(setChatbotResponses);
   }, []);
 
   const scrollToBottom = () => {
@@ -193,20 +167,7 @@ export function Chatbot() {
     setMessages(prev => [...prev, userMessage]);
     setInputValue("");
 
-    const lowerInput = text.toLowerCase();
-    let botResponse = "Entiendo. Aquí hay algunos temas sobre los que puedo ayudarte:\n\n• ¿Qué es el PHQ-9?\n• ¿Es confidencial?\n• ¿Cuánto tiempo tarda?\n• ¿Qué hago si tengo síntomas?\n• ¿Es un diagnóstico?\n\n¿Sobre cuál te gustaría saber más?";
-
-    for (const responseItem of chatbotResponses) {
-      const keyword = responseItem.clave.toLowerCase();
-      if (keyword && lowerInput.includes(keyword)) {
-        botResponse = responseItem.texto;
-        break;
-      }
-    }
-
-    if (lowerInput.includes("suicidio") || lowerInput.includes("hacerme daño") || lowerInput.includes("quitarme la vida")) {
-      botResponse = "Si estás en crisis o tienes pensamientos de hacerte daño, por favor contacta inmediatamente:\n\nLínea de Prevención del Suicidio: 0800-00-232 (24/7 gratuito)\nLínea 113 opción 5 - MINSA (24/7)\nEmergencias: 105 o 106\n\nNo estás solo/a. Hay profesionales disponibles para ayudarte.";
-    }
+    const botResponse = getBotResponse(text, chatbotResponses);
 
     const botMessage: Message = {
       id: Date.now() + 1,
