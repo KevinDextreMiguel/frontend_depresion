@@ -533,6 +533,116 @@ export async function deactivateChatbotResponse(
   }
 }
 
+// --- Chatbot Performance Monitoring (HU0016) ---
+
+export async function reportChatbotInteraction(payload: {
+  pregunta: string;
+  resuelta: boolean;
+  clave_respuesta?: string | null;
+}): Promise<void> {
+  try {
+    await fetch(apiPath("/chatbot/interactions"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    // El registro de métricas nunca debe romper la experiencia del chatbot.
+    console.warn("No se pudo registrar la interacción del chatbot", error);
+  }
+}
+
+export interface ChatbotInteractionItem {
+  id_interaccion: string;
+  pregunta: string;
+  resuelta: boolean;
+  clave_respuesta?: string | null;
+  id_usuario?: string | null;
+  created_at: string;
+}
+
+export interface ChatbotMetrics {
+  total_interacciones: number;
+  resueltas: number;
+  no_resueltas: number;
+  tasa_resolucion: number;
+  incidencias: ChatbotInteractionItem[];
+}
+
+export async function fetchChatbotMetrics(
+  accessToken: string
+): Promise<ChatbotMetrics> {
+  const response = await fetch(apiPath("/admin/chatbot/metrics"), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+  return response.json();
+}
+
+export async function fetchChatbotInteractions(
+  accessToken: string,
+  params: { resuelta?: boolean; limit?: number; offset?: number } = {}
+): Promise<ChatbotInteractionItem[]> {
+  const url = new URL(apiPath("/admin/chatbot/interactions"));
+  if (params.resuelta !== undefined) url.searchParams.set("resuelta", String(params.resuelta));
+  if (params.limit !== undefined) url.searchParams.set("limit", String(params.limit));
+  if (params.offset !== undefined) url.searchParams.set("offset", String(params.offset));
+  const response = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+  return response.json();
+}
+
+// --- System Audit (HU0043 CA3) ---
+
+export interface AuditLogItem {
+  id_auditoria: string;
+  id_usuario: string;
+  accion: string;
+  tabla_objetivo: string;
+  id_objetivo: string;
+  fecha_evento: string;
+  ip_origen?: string | null;
+  detalle?: string | null;
+  usuario_email?: string | null;
+  usuario_nombre?: string | null;
+}
+
+export interface AuditLogListResult {
+  total: number;
+  items: AuditLogItem[];
+}
+
+export async function fetchAuditLog(
+  accessToken: string,
+  params: {
+    id_usuario?: string;
+    accion?: string;
+    tabla_objetivo?: string;
+    fecha_desde?: string;
+    fecha_hasta?: string;
+    limit?: number;
+    offset?: number;
+  } = {}
+): Promise<AuditLogListResult> {
+  const url = new URL(apiPath("/admin/audit"));
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
+  });
+  const response = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+  return response.json();
+}
+
 export async function fetchStatistics(
   accessToken: string
 ): Promise<Statistics> {
@@ -625,6 +735,10 @@ export async function fetchStudentHistory(
   }
 
   return response.json();
+}
+
+export function getStudentHistoryPdfExportUrl(anonStudentId: string): string {
+  return apiPath(`/student-history/${encodeURIComponent(anonStudentId)}/export/pdf`);
 }
 
 export async function fetchStudentEvolution(accessToken: string): Promise<StudentEvolutionItem[]> {
@@ -1142,6 +1256,24 @@ export async function fetchLiveMonitoring(accessToken: string): Promise<any> {
 
 export async function fetchSettings(accessToken: string): Promise<any[]> {
   const response = await fetch(extPath("/settings"), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+  return response.json();
+}
+
+export interface PoliticaVersionHistorialItem {
+  id_version: string;
+  clave: string;
+  version: string;
+  contenido: string | null;
+  publicado_por: string | null;
+  publicado_por_nombre: string | null;
+  fecha_publicacion: string;
+}
+
+export async function fetchTcVersionHistory(accessToken: string): Promise<PoliticaVersionHistorialItem[]> {
+  const response = await fetch(extPath("/tc-versions"), {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!response.ok) throw new Error(await parseError(response));

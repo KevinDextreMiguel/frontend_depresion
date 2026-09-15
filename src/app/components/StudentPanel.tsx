@@ -93,7 +93,7 @@ export function StudentPanel({
   }, [lastScore]);
 
   const handleSaveProfile = async () => {
-    if (!profileName.trim()) { toast.error("El nombre no puede estar vacío."); return; }
+    if (!profileName.trim()) { toast.error("Campo obligatorio: el nombre no puede estar vacío."); return; }
     const token = getAccessToken();
     if (!token) return;
     try {
@@ -105,12 +105,12 @@ export function StudentPanel({
       if (profileUniversidad) payload.universidad = profileUniversidad;
 
       const updatedUser = await updateUserProfile(token, payload);
-      updateAuthUser({ 
-        nombre: updatedUser.nombre, 
+      updateAuthUser({
+        nombre: updatedUser.nombre,
         foto_perfil: updatedUser.foto_perfil,
         estudiante: updatedUser.estudiante
       });
-      toast.success("Perfil actualizado correctamente");
+      toast.success("Actualización exitosa: la información de tu perfil fue actualizada");
       setIsEditingProfile(false);
     } catch (error: any) {
       console.error("Profile update error:", error);
@@ -320,7 +320,7 @@ export function StudentPanel({
             {isEditingProfile && (
               <label className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors">
                 <Camera size={14} className="text-white" />
-                <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                <input type="file" data-testid="profile-photo-input" className="hidden" accept="image/*" onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
                     if (file.size > 2 * 1024 * 1024) { toast.error("Imagen menor a 2MB"); return; }
@@ -367,10 +367,11 @@ export function StudentPanel({
                 type="text"
                 value={profileName}
                 onChange={(e) => setProfileName(e.target.value)}
+                data-testid="profile-name-input"
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             ) : (
-              <p className="px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-800">
+              <p className="px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-800" data-testid="profile-name-display">
                 {user?.nombre || "—"}
               </p>
             )}
@@ -460,20 +461,22 @@ export function StudentPanel({
               <button
                 onClick={handleSaveProfile}
                 disabled={isSavingProfile}
+                data-testid="profile-save-button"
                 className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition-all disabled:opacity-60"
               >
                 {isSavingProfile ? "Guardando..." : "Guardar Cambios"}
               </button>
               <button
-                onClick={() => { 
-                  setIsEditingProfile(false); 
-                  setProfileName(user?.nombre || ""); 
-                  setProfilePhoto(user?.foto_perfil || null); 
+                onClick={() => {
+                  setIsEditingProfile(false);
+                  setProfileName(user?.nombre || "");
+                  setProfilePhoto(user?.foto_perfil || null);
                   setProfileEdad(user?.estudiante?.edad?.toString() || "");
                   setProfileGenero(user?.estudiante?.genero || "");
                   setProfileCarrera(user?.estudiante?.carrera || "");
                   setProfileUniversidad(user?.estudiante?.universidad || "");
                 }}
+                data-testid="profile-cancel-button"
                 className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
               >
                 Cancelar
@@ -482,6 +485,7 @@ export function StudentPanel({
           ) : (
             <button
               onClick={() => setIsEditingProfile(true)}
+              data-testid="profile-edit-button"
               className="flex-1 border-2 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 py-2.5 rounded-xl font-semibold hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all"
             >
               Editar Perfil

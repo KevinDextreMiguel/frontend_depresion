@@ -369,7 +369,11 @@ export function Questionnaire({
 
   // Estadísticas de progreso
   const totalQuestions = 1 + 12 + 9; // Datos + 12 MSPSS + 9 PHQ-9
-  const answeredDemographics = isDemographicsValid() ? 1 : 0;
+  // Los datos demográficos vienen pre-rellenados con valores por defecto, por
+  // lo que `isDemographicsValid()` es true desde el montaje aunque el usuario
+  // no haya tocado nada. Solo se cuentan como "respondidos" una vez que el
+  // usuario avanzó de este paso (HU0011 CA2: el progreso debe iniciar en 0%).
+  const answeredDemographics = step > 0 ? 1 : 0;
   const answeredMspss = mspssResponses.filter(v => v !== -1).length;
   const answeredPhq9 = phq9Responses.filter(v => v !== -1).length;
   const totalCompleted = answeredDemographics + answeredMspss + answeredPhq9;
@@ -399,13 +403,20 @@ export function Questionnaire({
             </a>
           </nav>
           <div className="flex items-center gap-3">
-            <button onClick={() => document.documentElement.classList.toggle('dark')} className="p-2 text-slate-500 hover:text-[#4A90E2] transition-colors rounded-full" title="Alternar tema">
+            <button
+              onClick={() => document.documentElement.classList.toggle('dark')}
+              className="p-2 text-slate-500 hover:text-[#4A90E2] transition-colors rounded-full"
+              title="Alternar tema"
+              aria-label="Ajustar contraste de la interfaz"
+              data-testid="questionnaire-contrast-toggle"
+            >
               <span className="material-symbols-outlined">contrast</span>
             </button>
             <button
               onClick={() => setShowRestartDialog(true)}
               className="p-2 text-slate-500 hover:text-red-500 transition-colors rounded-full"
               title="Reiniciar cuestionario"
+              data-testid="questionnaire-restart-button"
             >
               <RotateCcw className="w-5 h-5" />
             </button>
@@ -447,12 +458,16 @@ export function Questionnaire({
             </div>
             <div className="flex items-center gap-3">
               {saveIndicatorVisible && (
-                <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-semibold animate-pulse">
+                <div
+                  className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-semibold animate-pulse"
+                  data-testid="answer-save-confirmation"
+                  role="status"
+                >
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Guardado</span>
+                  <span>Registro exitoso: respuesta guardada</span>
                 </div>
               )}
-              <div className="text-xs text-slate-500 text-right">
+              <div className="text-xs text-slate-500 text-right" data-testid="questionnaire-progress-text">
                 <span className="font-bold text-slate-700 dark:text-slate-300 block">
                   Progreso Total: {progressPercent}%
                 </span>
@@ -460,10 +475,19 @@ export function Questionnaire({
               </div>
             </div>
           </div>
-          <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
+          <div
+            className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner"
+            role="progressbar"
+            aria-valuenow={progressPercent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Barra de progreso del cuestionario"
+            data-testid="questionnaire-progress-bar"
+          >
             <div
               className="h-full bg-gradient-to-r from-blue-500 to-[#4A90E2] transition-all duration-500 rounded-full"
               style={{ width: `${progressPercent}%` }}
+              data-testid="questionnaire-progress-fill"
             ></div>
           </div>
         </div>
@@ -741,7 +765,7 @@ export function Questionnaire({
                   <span className="bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
                     Tamizaje PHQ-9 (Salud Mental)
                   </span>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1" data-testid="phq9-question-indicator">
                     Pregunta {currentQuestion + 1} de 9
                   </p>
                 </div>
@@ -763,6 +787,8 @@ export function Questionnaire({
                         key={opt.value}
                         type="button"
                         onClick={() => handlePhq9Answer(opt.value)}
+                        data-testid={`phq9-q${currentQuestion + 1}-option-${opt.value}`}
+                        aria-pressed={isActive}
                         className={`flex justify-between items-center p-4 border rounded-2xl text-left font-semibold text-sm transition-all duration-100 active:scale-98 ${
                           isActive
                             ? "bg-blue-50 border-blue-400 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30"
@@ -878,12 +904,14 @@ export function Questionnaire({
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowRestartDialog(false)}
+                data-testid="restart-cancel-button"
                 className="px-6 py-3 border border-slate-200 dark:border-slate-700 rounded-full font-semibold text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleRestart}
+                data-testid="restart-confirm-button"
                 className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-full font-semibold text-xs transition-colors"
               >
                 Reiniciar

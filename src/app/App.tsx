@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import type { CuestionarioCompletoPayload } from "@/lib/api";
 import { LandingPage } from "./components/LandingPage";
-import { EvaluationInstructions } from "./components/EvaluationInstructions";
+import { EvaluationInstructions, type EvaluationModality } from "./components/EvaluationInstructions";
 import { Questionnaire } from "./components/Questionnaire";
 import { Results } from "./components/Results";
 import { UnifiedAuthFlow } from "./components/UnifiedAuthFlow";
@@ -36,6 +36,7 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [showConsent, setShowConsent] = useState(false);
+  const [evaluationModality, setEvaluationModality] = useState<EvaluationModality>("chatbot");
   const [hasSavedProgress, setHasSavedProgress] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -114,14 +115,18 @@ export default function App() {
     setCurrentScreen("instructions");
   };
 
-  const handleBeginQuestionnaire = () => {
+  const handleBeginQuestionnaire = (modality: EvaluationModality = "chatbot") => {
+    setEvaluationModality(modality);
     setShowConsent(true);
   };
 
   const confirmConsent = () => {
     setShowConsent(false);
     try {
-      window.dispatchEvent(new CustomEvent('mindcheck:guide:start', { detail: { startIndex: 0 } }));
+      localStorage.setItem("mindcheck_evaluation_modality", evaluationModality);
+      if (evaluationModality === "chatbot") {
+        window.dispatchEvent(new CustomEvent('mindcheck:guide:start', { detail: { startIndex: 0 } }));
+      }
     } catch {}
     setCurrentScreen("questionnaire");
   };
@@ -306,8 +311,8 @@ export default function App() {
             </nav>
             <div className="flex items-center gap-4">
               <div className="hidden md:flex items-center gap-3 text-slate-500">
-                <button 
-                  onClick={() => document.documentElement.classList.toggle('dark')} 
+                <button
+                  onClick={() => document.documentElement.classList.toggle('dark')}
                   className="material-symbols-outlined hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-full transition-all cursor-pointer"
                   title="Alternar Modo Oscuro"
                 >

@@ -1,4 +1,5 @@
 import { API_BASE } from "@/lib/api";
+import { reportChatbotInteraction } from "@/lib/api";
 
 export interface ChatbotResponseItem {
   clave: string;
@@ -111,6 +112,11 @@ const STATIC_FAQ: FaqEntry[] = [
     answer: "¡De nada! Estoy aquí si necesitas algo más.",
   },
   {
+    keywords: ["ayuda", "necesito ayuda", "estoy perdido", "no entiendo que hacer"],
+    answer:
+      "Estoy aquí para orientarte: responde cada pregunta del cuestionario seleccionando la opción que mejor te describa, avanza con el botón “Siguiente” y podrás volver atrás si lo necesitas. Si tienes dudas sobre la confidencialidad, el tiempo que toma o tus resultados, solo pregúntame.",
+  },
+  {
     keywords: ["quien eres", "que eres", "eres un bot", "eres una ia", "eres humano"],
     answer:
       "Soy el asistente virtual de MindCheck. Puedo orientarte sobre el cuestionario PHQ-9, la privacidad de tus datos y ponerte en contacto con recursos de apoyo emocional.",
@@ -129,24 +135,31 @@ function pickOffTopicFallback(): string {
 
 export function getBotResponse(rawText: string, dynamicResponses: ChatbotResponseItem[] = []): string {
   const text = normalize(rawText);
-  if (!text) return pickOffTopicFallback();
+  if (!text) {
+    reportChatbotInteraction({ pregunta: rawText, resuelta: false, clave_respuesta: null });
+    return pickOffTopicFallback();
+  }
 
   if (CRISIS_KEYWORDS.some((keyword) => text.includes(normalize(keyword)))) {
+    reportChatbotInteraction({ pregunta: rawText, resuelta: true, clave_respuesta: "__crisis__" });
     return CRISIS_RESPONSE;
   }
 
   for (const item of dynamicResponses) {
     const keyword = normalize(item.clave || "");
     if (keyword && text.includes(keyword)) {
+      reportChatbotInteraction({ pregunta: rawText, resuelta: true, clave_respuesta: item.clave });
       return item.texto;
     }
   }
 
   for (const entry of STATIC_FAQ) {
     if (entry.keywords.some((keyword) => text.includes(normalize(keyword)))) {
+      reportChatbotInteraction({ pregunta: rawText, resuelta: true, clave_respuesta: "__faq_estatico__" });
       return entry.answer;
     }
   }
 
+  reportChatbotInteraction({ pregunta: rawText, resuelta: false, clave_respuesta: null });
   return pickOffTopicFallback();
 }

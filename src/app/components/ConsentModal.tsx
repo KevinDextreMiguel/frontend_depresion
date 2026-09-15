@@ -20,8 +20,28 @@ export function ConsentModal({ open, accessToken, onAccept, onCancel }: ConsentM
   useEffect(() => {
     if (open && accessToken) {
       setIsLoading(true);
+      let settled = false;
+      const FALLBACK_CONTENT = "Consentimiento Informado (Ley N.° 29733): Autorizo el tratamiento de mis respuestas de salud mental del cuestionario PHQ-9 de forma confidencial. Comprendo que mis respuestas se usarán para evaluar mi nivel de riesgo y activar los canales de derivación correspondientes.";
+
+      // T-0XX: una red lenta (o un backend saturado) no debe dejar este modal
+      // invisible indefinidamente — sin esto, el usuario queda "congelado" en
+      // la pantalla de instrucciones sin ningún error visible mientras
+      // fetchConsentStatus sigue pendiente. Si no resuelve a tiempo, se usa
+      // el mismo contenido de respaldo que el catch de error de red.
+      const timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        console.warn("Tiempo de espera agotado al consultar el estado de consentimiento; usando contenido de respaldo.");
+        setIsOpen(true);
+        setConsentContent(FALLBACK_CONTENT);
+        setIsLoading(false);
+      }, 7000);
+
       fetchConsentStatus(accessToken)
         .then((data) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
           setConsentVersion(data.version);
           setConsentContent(data.content);
           if (data.accepted) {
@@ -32,14 +52,22 @@ export function ConsentModal({ open, accessToken, onAccept, onCancel }: ConsentM
           }
         })
         .catch((err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
           console.error("Error reading consent status:", err);
           // Standard fallback
           setIsOpen(true);
-          setConsentContent("Consentimiento Informado (Ley N.° 29733): Autorizo el tratamiento de mis respuestas de salud mental del cuestionario PHQ-9 de forma confidencial. Comprendo que mis respuestas se usarán para evaluar mi nivel de riesgo y activar los canales de derivación correspondientes.");
+          setConsentContent(FALLBACK_CONTENT);
         })
         .finally(() => {
           setIsLoading(false);
         });
+
+      return () => {
+        settled = true;
+        clearTimeout(timeoutId);
+      };
     } else if (open && !accessToken) {
       // If student is doing evaluation anonymously, check locally or skip backend log but show consent
       setIsOpen(true);

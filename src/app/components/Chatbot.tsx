@@ -27,9 +27,55 @@ export function Chatbot() {
   const [guidedMode, setGuidedMode] = useState(false);
   const [guidedIndex, setGuidedIndex] = useState<number | null>(null);
 
+  const GUIDED_STATE_KEY = "mindcheck_chatbot_guided_state";
+
   useEffect(() => {
     fetchChatbotResponses().then(setChatbotResponses);
   }, []);
+
+  // HU0013 CA3: al montar, si hay progreso de chat guiado y progreso del
+  // cuestionario guardados, retomar la sesión desde el último punto.
+  useEffect(() => {
+    try {
+      const savedChatState = localStorage.getItem(GUIDED_STATE_KEY);
+      const hasQuestionnaireProgress =
+        !!localStorage.getItem("mindcheck_phq9_progress") ||
+        Object.keys(localStorage).some((k) => k.startsWith("mindcheck_phq9_progress"));
+
+      if (savedChatState && hasQuestionnaireProgress) {
+        const parsed = JSON.parse(savedChatState) as { guidedMode: boolean; guidedIndex: number | null };
+        if (parsed.guidedMode && parsed.guidedIndex !== null) {
+          setGuidedMode(true);
+          setGuidedIndex(parsed.guidedIndex);
+          setIsOpen(true);
+          const resumeMessage: Message = {
+            id: Date.now(),
+            text: `Hemos retomado tu evaluación. Continuemos desde la pregunta ${parsed.guidedIndex + 1}.`,
+            sender: "bot",
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          };
+          setMessages((prev) => [...prev, resumeMessage]);
+        }
+      }
+    } catch {
+      // ignore malformed/inaccessible storage
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persistir el progreso guiado cada vez que cambia, para poder reanudar
+  // la sesión tras recargar la página o cerrar el navegador.
+  useEffect(() => {
+    try {
+      if (guidedMode) {
+        localStorage.setItem(GUIDED_STATE_KEY, JSON.stringify({ guidedMode, guidedIndex }));
+      } else {
+        localStorage.removeItem(GUIDED_STATE_KEY);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [guidedMode, guidedIndex]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -190,8 +236,9 @@ export function Chatbot() {
   if (!isOpen) {
     return (
       <div className="fixed bottom-8 right-8 z-50">
-        <button 
+        <button
           onClick={() => setIsOpen(true)}
+          data-testid="chatbot-open-button"
           className="w-16 h-16 bg-primary-container rounded-full shadow-lg flex items-center justify-center text-white active:scale-95 transition-transform"
         >
           <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>chat</span>
@@ -201,7 +248,10 @@ export function Chatbot() {
   }
 
   return (
-    <div className="fixed bottom-8 right-8 w-96 h-[600px] max-h-[80vh] bg-white border border-outline-variant rounded-xl shadow-[0px_4px_20px_rgba(74,144,226,0.08)] flex flex-col overflow-hidden z-50">
+    <div
+      className="fixed bottom-8 right-8 w-96 h-[600px] max-h-[80vh] bg-white border border-outline-variant rounded-xl shadow-[0px_4px_20px_rgba(74,144,226,0.08)] flex flex-col overflow-hidden z-50"
+      data-testid="chatbot-panel"
+    >
       {/* Chat Header */}
       <div className="bg-primary px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -214,7 +264,7 @@ export function Chatbot() {
             <p className="text-[10px] text-on-primary opacity-80 uppercase tracking-widest m-0 leading-tight">Siempre aquí para ayudar</p>
           </div>
         </div>
-        <button onClick={() => setIsOpen(false)} className="material-symbols-outlined text-on-primary opacity-80 hover:opacity-100 transition-opacity">
+        <button onClick={() => setIsOpen(false)} data-testid="chatbot-close-button" className="material-symbols-outlined text-on-primary opacity-80 hover:opacity-100 transition-opacity">
           close
         </button>
       </div>
@@ -226,7 +276,7 @@ export function Chatbot() {
         </div>
 
         {messages.map((message) => (
-          <div key={message.id} className={`flex gap-2 max-w-[90%] ${message.sender === 'user' ? 'ml-auto flex-row-reverse' : ''}`}>
+          <div key={message.id} data-testid="chatbot-message" data-sender={message.sender} className={`flex gap-2 max-w-[90%] ${message.sender === 'user' ? 'ml-auto flex-row-reverse' : ''}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${message.sender === 'user' ? 'bg-secondary-container' : 'bg-primary-container'}`}>
               <span className={`material-symbols-outlined text-sm ${message.sender === 'user' ? 'text-on-secondary-container' : 'text-on-primary-container'}`}>
                 {message.sender === 'user' ? 'person' : 'smart_toy'}
@@ -247,22 +297,23 @@ export function Chatbot() {
       <div className="px-4 py-3 bg-white border-t border-outline-variant/50">
         <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-hide">
           <button onClick={() => handleSendMessage("¿Es confidencial?")} className="whitespace-nowrap px-3 py-1.5 bg-surface-container-low border border-outline-variant rounded-full text-xs font-medium hover:bg-primary-container hover:text-on-primary-container transition-all active:scale-95">¿Confidencial?</button>
-          <button onClick={() => handleSendMessage("ayuda")} className="whitespace-nowrap px-3 py-1.5 bg-surface-container-low border border-outline-variant rounded-full text-xs font-medium hover:bg-primary-container hover:text-on-primary-container transition-all active:scale-95">Opciones</button>
+          <button onClick={() => handleSendMessage("ayuda")} data-testid="chatbot-quick-reply-ayuda" className="whitespace-nowrap px-3 py-1.5 bg-surface-container-low border border-outline-variant rounded-full text-xs font-medium hover:bg-primary-container hover:text-on-primary-container transition-all active:scale-95">Opciones</button>
         </div>
       </div>
 
       {/* Input Area */}
       <div className="px-4 py-3 bg-white border-t border-outline-variant/30 flex gap-2 items-center flex-shrink-0">
         <div className="flex-grow relative">
-          <input 
+          <input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            className="w-full h-10 pl-3 pr-10 rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background transition-all outline-none text-sm" 
-            placeholder="Escribe aquí..." 
+            data-testid="chatbot-input"
+            className="w-full h-10 pl-3 pr-10 rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background transition-all outline-none text-sm"
+            placeholder="Escribe aquí..."
             type="text"
           />
-          <button onClick={() => handleSendMessage()} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:bg-primary/10 rounded-full transition-all flex items-center justify-center">
+          <button onClick={() => handleSendMessage()} data-testid="chatbot-send-button" className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:bg-primary/10 rounded-full transition-all flex items-center justify-center">
             <span className="material-symbols-outlined text-[20px]">send</span>
           </button>
         </div>

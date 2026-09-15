@@ -38,12 +38,20 @@ import {
   fetchInterventionsEffectiveness,
   getExcelExportUrl,
   getPdfExportUrl,
+  getStudentHistoryPdfExportUrl,
+  fetchTcVersionHistory,
+  type PoliticaVersionHistorialItem,
   fetchResearcherDataset,
   fetchLiveMonitoring,
   fetchSettings,
   updateSetting,
   fetchMLAudits,
   fetchMLMetrics,
+  fetchChatbotMetrics,
+  fetchAuditLog,
+  type ChatbotMetrics,
+  type ChatbotInteractionItem,
+  type AuditLogItem,
   type Statistics,
   type ReportItem,
   type DerivationItem,
@@ -64,7 +72,7 @@ interface AdminPanelProps {
   onLogout: () => void;
 }
 
-type TabType = "overview" | "analytics" | "reports" | "assigned" | "model" | "users" | "settings" | "backups" | "dashboard" | "monitoring" | "mlaudit" | "exports";
+type TabType = "overview" | "analytics" | "reports" | "assigned" | "model" | "users" | "settings" | "backups" | "dashboard" | "monitoring" | "mlaudit" | "exports" | "chatbotmonitor" | "audit" | "chatbotconfig";
 
 const RISK_LEVEL_OPTIONS = [
   { value: "minimo", label: "Mínimo" },
@@ -146,6 +154,21 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [loadingChatbot, setLoadingChatbot] = useState(false);
   const [savingChatbot, setSavingChatbot] = useState(false);
 
+  // HU0016 — Desempeño del chatbot
+  const [chatbotMetrics, setChatbotMetrics] = useState<ChatbotMetrics | null>(null);
+  const [loadingChatbotMetrics, setLoadingChatbotMetrics] = useState(false);
+  const [chatbotMetricsError, setChatbotMetricsError] = useState<string | null>(null);
+
+  // HU0043 CA3 — Auditoría del sistema
+  const [auditItems, setAuditItems] = useState<AuditLogItem[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [auditFilterAccion, setAuditFilterAccion] = useState("");
+  const [auditFilterTabla, setAuditFilterTabla] = useState("");
+  const [auditFilterDesde, setAuditFilterDesde] = useState("");
+  const [auditFilterHasta, setAuditFilterHasta] = useState("");
+
   const [modelLoading, setModelLoading] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
 
@@ -205,6 +228,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [loadingResearcher, setLoadingResearcher] = useState(false);
   const [downloadingExcel, setDownloadingExcel] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadingStudentPdf, setDownloadingStudentPdf] = useState(false);
 
   const [liveMonitoring, setLiveMonitoring] = useState<any>(null);
   const [loadingMonitoring, setLoadingMonitoring] = useState(false);
@@ -215,6 +239,8 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingSettingId, setSavingSettingId] = useState<string | null>(null);
   const [settingEditValues, setSettingEditValues] = useState<Record<string, string>>({});
+  const [tcVersionHistory, setTcVersionHistory] = useState<PoliticaVersionHistorialItem[]>([]);
+  const [loadingTcHistory, setLoadingTcHistory] = useState(false);
 
   const [mlAudits, setMlAudits] = useState<any[]>([]);
   const [mlMetrics, setMlMetrics] = useState<any[]>([]);
@@ -573,6 +599,22 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     }
   }, []);
 
+  // HU0031 CA2: historial de versiones publicadas de los Términos y
+  // Condiciones (versión, fecha y quién la publicó).
+  const loadTcVersionHistory = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      setLoadingTcHistory(true);
+      const data = await fetchTcVersionHistory(token);
+      setTcVersionHistory(Array.isArray(data) ? data : []);
+    } catch (err) {
+      toast.error("Error al cargar el historial de versiones de políticas.");
+    } finally {
+      setLoadingTcHistory(false);
+    }
+  }, []);
+
   const loadResearcherDataset = useCallback(async () => {
     const token = getAccessToken();
     if (!token) return;
@@ -657,6 +699,42 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     }
   };
 
+  // HU0028: exportar el reporte PDF individual de un estudiante puntual
+  // (disponible tanto para admin como para el psicólogo con acceso al caso),
+  // reutilizando el endpoint de historial ya expuesto en el expediente.
+  const handleDownloadStudentHistoryPdf = async (anonId: string) => {
+    const token = getAccessToken();
+    if (!token) {
+      toast.error("Sesión no iniciada o inválida.");
+      return;
+    }
+    try {
+      setDownloadingStudentPdf(true);
+      const url = getStudentHistoryPdfExportUrl(anonId);
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        throw new Error("No se pudo obtener el reporte del estudiante.");
+      }
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.setAttribute("download", `reporte_${anonId.replace('#', '')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success("Reporte del estudiante descargado correctamente.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al exportar el reporte del estudiante. Intenta nuevamente.");
+    } finally {
+      setDownloadingStudentPdf(false);
+    }
+  };
+
   const handleSaveSetting = async (id: string) => {
     const token = getAccessToken();
     if (!token) return;
@@ -666,6 +744,9 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
       const updated = await updateSetting(token, id, val);
       setSystemSettings((prev) => prev.map((s) => s.id_config === id ? updated : s));
       toast.success("Configuración actualizada.");
+      if (updated?.clave === "tc_version" || updated?.clave === "tc_content") {
+        loadTcVersionHistory();
+      }
     } catch (err) {
       toast.error("Error al guardar configuración.");
     } finally {
@@ -701,11 +782,11 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     if (!token) return;
     try {
       await updateUserRole(token, userId, newRole);
-      toast.success("Rol actualizado correctamente");
+      toast.success("Asignación de rol exitosa: el sistema actualizó el rol correctamente");
       loadUsersData();
     } catch (err) {
       if (err instanceof Error && err.message === "403_FORBIDDEN") {
-        toast.error("Acceso denegado: permisos insuficientes para modificar roles");
+        toast.error("Acceso restringido: el sistema deniega el acceso por permisos insuficientes para modificar roles");
       } else {
         toast.error("Error al actualizar el rol.");
       }
@@ -1084,10 +1165,80 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   };
 
   useEffect(() => {
-    if (activeTab === "settings") {
+    if (activeTab === "settings" || activeTab === "chatbotconfig") {
       loadChatbotResponses();
     }
   }, [activeTab, loadChatbotResponses]);
+
+  // --- HU0016: Desempeño del chatbot ---
+  const loadChatbotMetrics = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      setLoadingChatbotMetrics(true);
+      setChatbotMetricsError(null);
+      const metrics = await fetchChatbotMetrics(token);
+      setChatbotMetrics(metrics);
+    } catch (err) {
+      setChatbotMetricsError("No se pudieron cargar las métricas del chatbot.");
+    } finally {
+      setLoadingChatbotMetrics(false);
+    }
+  }, []);
+
+  const handleExportChatbotInteractionsCsv = () => {
+    if (!chatbotMetrics) return;
+    const header = "pregunta,resuelta,clave_respuesta,fecha\n";
+    const rows = chatbotMetrics.incidencias.map((item: ChatbotInteractionItem) => {
+      const pregunta = `"${(item.pregunta || "").replace(/"/g, '""')}"`;
+      return [pregunta, item.resuelta, item.clave_respuesta || "", item.created_at].join(",");
+    });
+    const csv = header + rows.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `chatbot_incidencias_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  useEffect(() => {
+    if (activeTab === "chatbotmonitor") {
+      loadChatbotMetrics();
+    }
+  }, [activeTab, loadChatbotMetrics]);
+
+  // --- HU0043 CA3: Auditoría del sistema ---
+  const loadAuditLog = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      setLoadingAudit(true);
+      setAuditError(null);
+      const result = await fetchAuditLog(token, {
+        accion: auditFilterAccion || undefined,
+        tabla_objetivo: auditFilterTabla || undefined,
+        fecha_desde: auditFilterDesde ? new Date(auditFilterDesde).toISOString() : undefined,
+        fecha_hasta: auditFilterHasta ? new Date(auditFilterHasta).toISOString() : undefined,
+        limit: 100,
+      });
+      setAuditItems(result.items);
+      setAuditTotal(result.total);
+    } catch (err) {
+      setAuditError("No se pudo cargar el registro de auditoría.");
+    } finally {
+      setLoadingAudit(false);
+    }
+  }, [auditFilterAccion, auditFilterTabla, auditFilterDesde, auditFilterHasta]);
+
+  useEffect(() => {
+    if (activeTab === "audit") {
+      loadAuditLog();
+    }
+  }, [activeTab, loadAuditLog]);
 
   useEffect(() => {
     loadDashboardData();
@@ -1552,13 +1703,27 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
               <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">{selectedStudentAnonId}</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400">Lista cronológica de evaluaciones previas para este estudiante.</p>
             </div>
-            <button
-              type="button"
-              onClick={handleClearStudentHistory}
-              className="self-start rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              Cerrar historial
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => selectedStudentAnonId && handleDownloadStudentHistoryPdf(selectedStudentAnonId)}
+                disabled={downloadingStudentPdf || !selectedStudentAnonId}
+                data-testid="student-history-export-pdf-button"
+                className="self-start flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-base">
+                  {downloadingStudentPdf ? "hourglass_empty" : "picture_as_pdf"}
+                </span>
+                {downloadingStudentPdf ? "Exportando..." : "Exportar PDF"}
+              </button>
+              <button
+                type="button"
+                onClick={handleClearStudentHistory}
+                className="self-start rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Cerrar historial
+              </button>
+            </div>
           </div>
 
           <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1644,7 +1809,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                         )}
                         {item.interpretabilidad && (
                           <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Factores que influyeron en la predicción (HU0018)</p>
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Factores que influyeron en la predicción (HU0017)</p>
                             <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
                               {item.interpretabilidad.ml_prediction && (
                                 <li>Predicción del modelo: <span className="font-semibold">{item.interpretabilidad.ml_prediction}</span>{item.interpretabilidad.ml_probability != null ? ` (${(item.interpretabilidad.ml_probability * 100).toFixed(0)}%)` : ""}</li>
@@ -2233,12 +2398,13 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 ) : (
                   usersList.map((u) => (
                     <tr key={u.id_usuario} className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
-                      <td className="px-6 py-4 font-medium dark:text-slate-200">{u.nombre}</td>
+                      <td className="px-6 py-4 font-medium dark:text-slate-200" data-testid={`user-row-name-${u.id_usuario}`}>{u.nombre}</td>
                       <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{u.correo || "N/A"}</td>
                       <td className="px-6 py-4">
                         <select
                           className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold py-1.5 pl-2 pr-6 focus:ring-primary dark:text-slate-200"
                           value={u.rol}
+                          data-testid={`user-role-select-${u.id_usuario}`}
                           onChange={(e) => handleRoleChange(u.id_usuario, e.target.value)}
                         >
                           <option value="admin">Administrador</option>
@@ -2248,10 +2414,11 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                       </td>
                       <td className="px-6 py-4">
                         <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            className="sr-only peer" 
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
                             checked={u.activo}
+                            data-testid={`user-status-toggle-${u.id_usuario}`}
                             onChange={(e) => handleStatusChange(u.id_usuario, e.target.checked)}
                           />
                           <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-primary"></div>
@@ -2414,6 +2581,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
               <p className="text-sm text-slate-500 dark:text-slate-400">Crea y edita respuestas predeterminadas que el chatbot puede usar en el asistente.</p>
             </div>
             <button
+              data-testid="chatbot-response-new-btn"
               onClick={() => handleSelectChatbotResponse(null)}
               className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
             >
@@ -2424,7 +2592,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-4">
               <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-                <table className="min-w-full text-sm text-left">
+                <table data-testid="chatbot-responses-table" className="min-w-full text-sm text-left">
                   <thead className="text-slate-500 dark:text-slate-400 text-[11px] uppercase tracking-[0.12em]">
                     <tr>
                       <th className="px-3 py-2">Clave</th>
@@ -2440,18 +2608,20 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                       </tr>
                     ) : chatbotResponses?.length ? (
                       chatbotResponses.map((item) => (
-                        <tr key={item.id_respuesta} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${selectedChatbotResponseId === item.id_respuesta ? "bg-blue-50 dark:bg-blue-500/10" : ""}`}>
+                        <tr key={item.id_respuesta} data-testid={`chatbot-response-row-${item.clave}`} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${selectedChatbotResponseId === item.id_respuesta ? "bg-blue-50 dark:bg-blue-500/10" : ""}`}>
                           <td className="px-3 py-3 font-medium text-slate-800 dark:text-slate-100">{item.clave}</td>
                           <td className="px-3 py-3 text-slate-500 dark:text-slate-400">{item.categoria || "General"}</td>
                           <td className="px-3 py-3 text-slate-500 dark:text-slate-400">{item.activa ? "Activo" : "Inactivo"}</td>
                           <td className="px-3 py-3 text-right space-x-2">
                             <button
+                              data-testid={`chatbot-response-edit-${item.clave}`}
                               onClick={() => handleSelectChatbotResponse(item.id_respuesta)}
                               className="text-primary text-xs font-semibold hover:underline"
                             >
                               Editar
                             </button>
                             <button
+                              data-testid={`chatbot-response-deactivate-${item.clave}`}
                               onClick={() => handleDeactivateChatbotResponse(item.id_respuesta)}
                               className="text-red-500 text-xs font-semibold hover:underline"
                             >
@@ -2477,6 +2647,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
               <div className="space-y-4">
                 <label className="block text-sm text-slate-700 dark:text-slate-300">Clave</label>
                 <input
+                  data-testid="chatbot-response-clave-input"
                   value={chatbotClave}
                   onChange={(e) => setChatbotClave(e.target.value)}
                   placeholder="e.g. saludo_inicial"
@@ -2486,6 +2657,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
               <div className="space-y-4">
                 <label className="block text-sm text-slate-700 dark:text-slate-300">Texto</label>
                 <textarea
+                  data-testid="chatbot-response-texto-input"
                   value={chatbotTexto}
                   onChange={(e) => setChatbotTexto(e.target.value)}
                   rows={4}
@@ -2497,6 +2669,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 <div className="space-y-2">
                   <label className="block text-sm text-slate-700 dark:text-slate-300">Categoría</label>
                   <input
+                    data-testid="chatbot-response-categoria-input"
                     value={chatbotCategoria}
                     onChange={(e) => setChatbotCategoria(e.target.value)}
                     placeholder="e.g. Bienvenida"
@@ -2506,6 +2679,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 <div className="space-y-2">
                   <label className="block text-sm text-slate-700 dark:text-slate-300">Orden</label>
                   <input
+                    data-testid="chatbot-response-orden-input"
                     type="number"
                     value={chatbotOrden ?? ""}
                     onChange={(e) => setChatbotOrden(e.target.value ? Number(e.target.value) : undefined)}
@@ -2516,6 +2690,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
                   <input
+                    data-testid="chatbot-response-activa-checkbox"
                     type="checkbox"
                     checked={chatbotActiva}
                     onChange={(e) => setChatbotActiva(e.target.checked)}
@@ -2533,6 +2708,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                   Limpiar
                 </button>
                 <button
+                  data-testid="chatbot-response-save-btn"
                   type="button"
                   onClick={handleSaveChatbotResponse}
                   disabled={savingChatbot}
@@ -2541,6 +2717,166 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                   {savingChatbot ? "Guardando..." : selectedChatbotResponseId ? "Guardar Cambios" : "Crear Respuesta"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // --- HU0015: Configurar respuestas predeterminadas del chatbot (accesible
+  // también para psicólogo, no solo admin como el resto de "Configuración") ---
+  const renderChatbotConfig = () => (
+    <div className="space-y-6" data-testid="chatbot-config-panel">
+      <div className="space-y-2 mb-4">
+        <h2 className="font-h1 text-h1 text-on-background dark:text-white">Configurar Chatbot</h2>
+        <p className="font-body-lg text-body-lg text-tertiary dark:text-slate-400 max-w-2xl">
+          Cree y edite respuestas predeterminadas que el chatbot utiliza para orientar a los estudiantes. Los cambios se aplican de inmediato al asistente.
+        </p>
+      </div>
+
+      <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+          <div>
+            <h3 className="font-bold text-slate-900 dark:text-white">Respuestas del Chatbot</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Crea y edita respuestas predeterminadas que el chatbot puede usar en el asistente.</p>
+          </div>
+          <button
+            data-testid="chatbot-response-new-btn"
+            onClick={() => handleSelectChatbotResponse(null)}
+            className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
+          >
+            Nueva respuesta
+          </button>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-4">
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <table data-testid="chatbot-responses-table" className="min-w-full text-sm text-left">
+                <thead className="text-slate-500 dark:text-slate-400 text-[11px] uppercase tracking-[0.12em]">
+                  <tr>
+                    <th className="px-3 py-2">Clave</th>
+                    <th className="px-3 py-2">Categoría</th>
+                    <th className="px-3 py-2">Estado</th>
+                    <th className="px-3 py-2 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {loadingChatbot ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">Cargando respuestas...</td>
+                    </tr>
+                  ) : chatbotResponses?.length ? (
+                    chatbotResponses.map((item) => (
+                      <tr key={item.id_respuesta} data-testid={`chatbot-response-row-${item.clave}`} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${selectedChatbotResponseId === item.id_respuesta ? "bg-blue-50 dark:bg-blue-500/10" : ""}`}>
+                        <td className="px-3 py-3 font-medium text-slate-800 dark:text-slate-100">{item.clave}</td>
+                        <td className="px-3 py-3 text-slate-500 dark:text-slate-400">{item.categoria || "General"}</td>
+                        <td className="px-3 py-3 text-slate-500 dark:text-slate-400">{item.activa ? "Activo" : "Inactivo"}</td>
+                        <td className="px-3 py-3 text-right space-x-2">
+                          <button
+                            data-testid={`chatbot-response-edit-${item.clave}`}
+                            onClick={() => handleSelectChatbotResponse(item.id_respuesta)}
+                            className="text-primary text-xs font-semibold hover:underline"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            data-testid={`chatbot-response-deactivate-${item.clave}`}
+                            onClick={() => handleDeactivateChatbotResponse(item.id_respuesta)}
+                            className="text-red-500 text-xs font-semibold hover:underline"
+                          >
+                            Desactivar
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">No hay respuestas configuradas.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+            <div>
+              <h4 className="font-semibold text-slate-900 dark:text-white">Editor de respuesta</h4>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Guarde cambios para actualizar el asistente de apoyo.</p>
+            </div>
+            <div className="space-y-4">
+              <label className="block text-sm text-slate-700 dark:text-slate-300">Clave</label>
+              <input
+                data-testid="chatbot-response-clave-input"
+                value={chatbotClave}
+                onChange={(e) => setChatbotClave(e.target.value)}
+                placeholder="e.g. saludo_inicial"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white"
+              />
+            </div>
+            <div className="space-y-4">
+              <label className="block text-sm text-slate-700 dark:text-slate-300">Texto</label>
+              <textarea
+                data-testid="chatbot-response-texto-input"
+                value={chatbotTexto}
+                onChange={(e) => setChatbotTexto(e.target.value)}
+                rows={4}
+                placeholder="Escribe la respuesta que el chatbot debe usar."
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="block text-sm text-slate-700 dark:text-slate-300">Categoría</label>
+                <input
+                  data-testid="chatbot-response-categoria-input"
+                  value={chatbotCategoria}
+                  onChange={(e) => setChatbotCategoria(e.target.value)}
+                  placeholder="e.g. Bienvenida"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm text-slate-700 dark:text-slate-300">Orden</label>
+                <input
+                  data-testid="chatbot-response-orden-input"
+                  type="number"
+                  value={chatbotOrden ?? ""}
+                  onChange={(e) => setChatbotOrden(e.target.value ? Number(e.target.value) : undefined)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
+                <input
+                  data-testid="chatbot-response-activa-checkbox"
+                  type="checkbox"
+                  checked={chatbotActiva}
+                  onChange={(e) => setChatbotActiva(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                />
+                Activa
+              </label>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => handleSelectChatbotResponse(null)}
+                className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Limpiar
+              </button>
+              <button
+                data-testid="chatbot-response-save-btn"
+                type="button"
+                onClick={handleSaveChatbotResponse}
+                disabled={savingChatbot}
+                className="px-4 py-3 rounded-xl bg-primary text-white hover:bg-blue-600 transition-colors disabled:opacity-50"
+              >
+                {savingChatbot ? "Guardando..." : selectedChatbotResponseId ? "Guardar Cambios" : "Crear Respuesta"}
+              </button>
             </div>
           </div>
         </div>
@@ -2969,7 +3305,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     );
   };
 
-  // \u2500\u2500 HU0039\u201340: Exportación y Dataset de Investigación \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // HU0038/HU0040: Exportacion de reportes y dataset anonimizado
   const renderExports = () => (
     <div className="space-y-8">
       <div className="space-y-1">
@@ -3177,6 +3513,53 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
               </div>
             )}
           </div>
+
+          {/* HU0031 CA2: Historial de versiones de Términos y Condiciones */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm" data-testid="tc-version-history-card">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-bold text-slate-800 dark:text-white">Historial de Versiones de Políticas</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                  Cada publicación de "tc_version" o "tc_content" en Parámetros del Sistema queda registrada aquí, sin sobreescribir el historial.
+                </p>
+              </div>
+              <button onClick={loadTcVersionHistory} disabled={loadingTcHistory}
+                className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-semibold hover:underline">
+                <span className={`material-symbols-outlined text-sm ${loadingTcHistory ? "animate-spin" : ""}`}>refresh</span>
+                Cargar historial
+              </button>
+            </div>
+            {loadingTcHistory ? (
+              <div className="text-center py-8 text-slate-400"><span className="material-symbols-outlined animate-spin text-3xl">refresh</span></div>
+            ) : tcVersionHistory.length === 0 ? (
+              <button onClick={loadTcVersionHistory} className="w-full py-6 text-blue-600 dark:text-blue-400 text-sm font-semibold hover:underline">
+                Cargar historial de versiones
+              </button>
+            ) : (
+              <div className="overflow-x-auto">
+                <table data-testid="tc-version-history-table" className="min-w-full text-sm text-left">
+                  <thead className="text-slate-500 dark:text-slate-400 text-[11px] uppercase tracking-[0.12em]">
+                    <tr>
+                      <th className="px-3 py-2">Versión</th>
+                      <th className="px-3 py-2">Fecha de publicación</th>
+                      <th className="px-3 py-2">Publicado por</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {tcVersionHistory.map((v) => (
+                      <tr key={v.id_version} data-testid="tc-version-history-row">
+                        <td className="px-3 py-3 font-medium text-slate-800 dark:text-slate-100">{v.version}</td>
+                        <td className="px-3 py-3 text-slate-500 dark:text-slate-400">
+                          {new Date(v.fecha_publicacion).toLocaleString("es-PE", { dateStyle: "medium", timeStyle: "short" })}
+                        </td>
+                        <td className="px-3 py-3 text-slate-500 dark:text-slate-400">{v.publicado_por_nombre || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </>
       ) : (
         <div className="text-center py-12 text-slate-400">No se pudo conectar al sistema de monitoreo.</div>
@@ -3310,6 +3693,177 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     </div>
   );
 
+  const renderChatbotMonitor = () => (
+    <div className="space-y-8" data-testid="chatbot-monitor-panel">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Desempeño del Chatbot</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Indicadores clave, tasa de resolución e incidencias del asistente virtual (HU0016).</p>
+        </div>
+        <button onClick={loadChatbotMetrics} className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-semibold hover:underline">
+          <span className="material-symbols-outlined text-sm">refresh</span> Recargar
+        </button>
+      </div>
+
+      {loadingChatbotMetrics ? (
+        <div className="text-center py-16 text-slate-400"><span className="material-symbols-outlined animate-spin text-4xl">refresh</span><p className="mt-2">Cargando métricas...</p></div>
+      ) : chatbotMetricsError ? (
+        <div className="text-center py-12 text-red-500 text-sm">{chatbotMetricsError}</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div data-testid="chatbot-kpi-total" className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-5 shadow-sm">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3 bg-blue-50 dark:bg-blue-500/10">
+                <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">forum</span>
+              </div>
+              <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{chatbotMetrics?.total_interacciones ?? 0}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Interacciones totales</p>
+            </div>
+            <div data-testid="chatbot-kpi-tasa-resolucion" className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-5 shadow-sm">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3 bg-emerald-50 dark:bg-emerald-500/10">
+                <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400">check_circle</span>
+              </div>
+              <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{chatbotMetrics?.tasa_resolucion ?? 0}%</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Tasa de resolución ({chatbotMetrics?.resueltas ?? 0} resueltas)</p>
+            </div>
+            <div data-testid="chatbot-kpi-incidencias" className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-5 shadow-sm">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3 bg-amber-50 dark:bg-amber-500/10">
+                <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">report</span>
+              </div>
+              <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{chatbotMetrics?.no_resueltas ?? 0}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Consultas no resueltas / incidencias</p>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
+              <h3 className="font-bold text-slate-800 dark:text-white">Conversaciones problemáticas (sin resolver)</h3>
+              <button
+                data-testid="chatbot-export-csv-btn"
+                onClick={handleExportChatbotInteractionsCsv}
+                disabled={!chatbotMetrics || chatbotMetrics.incidencias.length === 0}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-sm">download</span> Exportar CSV
+              </button>
+            </div>
+            {!chatbotMetrics || chatbotMetrics.incidencias.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 text-sm">No hay incidencias registradas.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table data-testid="chatbot-incidencias-table" className="min-w-full text-sm">
+                  <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider">
+                    <tr>
+                      <th className="px-5 py-3 text-left font-semibold">Pregunta</th>
+                      <th className="px-5 py-3 text-left font-semibold">Fecha</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {chatbotMetrics.incidencias.map((item) => (
+                      <tr key={item.id_interaccion} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-5 py-3 text-slate-700 dark:text-slate-300 max-w-md truncate">{item.pregunta}</td>
+                        <td className="px-5 py-3 text-slate-500 dark:text-slate-400 text-xs">
+                          {new Date(item.created_at).toLocaleString("es-PE", { dateStyle: "medium", timeStyle: "short" })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  const renderAudit = () => (
+    <div className="space-y-6" data-testid="audit-panel">
+      <div className="space-y-1">
+        <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Auditoría del Sistema</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Historial filtrable de accesos y cambios realizados en la plataforma (HU0043).</p>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <input
+          data-testid="audit-filter-accion"
+          value={auditFilterAccion}
+          onChange={(e) => setAuditFilterAccion(e.target.value)}
+          placeholder="Acción (ej. login)"
+          className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
+        />
+        <input
+          data-testid="audit-filter-tabla"
+          value={auditFilterTabla}
+          onChange={(e) => setAuditFilterTabla(e.target.value)}
+          placeholder="Tabla afectada"
+          className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
+        />
+        <input
+          data-testid="audit-filter-desde"
+          type="date"
+          value={auditFilterDesde}
+          onChange={(e) => setAuditFilterDesde(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
+        />
+        <input
+          data-testid="audit-filter-hasta"
+          type="date"
+          value={auditFilterHasta}
+          onChange={(e) => setAuditFilterHasta(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-white"
+        />
+        <button
+          data-testid="audit-filter-apply-btn"
+          onClick={loadAuditLog}
+          className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
+        >
+          Filtrar
+        </button>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <h3 className="font-bold text-slate-800 dark:text-white">Historial de actividades ({auditTotal})</h3>
+        </div>
+        {loadingAudit ? (
+          <div className="text-center py-16 text-slate-400"><span className="material-symbols-outlined animate-spin text-4xl">refresh</span><p className="mt-2">Cargando auditoría...</p></div>
+        ) : auditError ? (
+          <div className="text-center py-12 text-red-500 text-sm">{auditError}</div>
+        ) : auditItems.length === 0 ? (
+          <div className="text-center py-12 text-slate-400 text-sm">No hay registros de auditoría para los filtros seleccionados.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table data-testid="audit-log-table" className="min-w-full text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider">
+                <tr>
+                  <th className="px-5 py-3 text-left font-semibold">Usuario</th>
+                  <th className="px-5 py-3 text-left font-semibold">Acción</th>
+                  <th className="px-5 py-3 text-left font-semibold">Tabla afectada</th>
+                  <th className="px-5 py-3 text-left font-semibold">Fecha</th>
+                  <th className="px-5 py-3 text-left font-semibold">IP</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {auditItems.map((item) => (
+                  <tr key={item.id_auditoria} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-5 py-3 text-slate-700 dark:text-slate-300 text-xs">{item.usuario_email || item.usuario_nombre || item.id_usuario}</td>
+                    <td className="px-5 py-3 text-slate-700 dark:text-slate-300">{item.accion}</td>
+                    <td className="px-5 py-3 text-slate-500 dark:text-slate-400 font-mono text-xs">{item.tabla_objetivo}</td>
+                    <td className="px-5 py-3 text-slate-500 dark:text-slate-400 text-xs">
+                      {new Date(item.fecha_evento).toLocaleString("es-PE", { dateStyle: "medium", timeStyle: "short" })}
+                    </td>
+                    <td className="px-5 py-3 text-slate-500 dark:text-slate-400 text-xs">{item.ip_origen || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="font-body-md text-on-background dark:text-slate-300 bg-background dark:bg-slate-950 min-h-screen flex overflow-hidden transition-colors duration-300 relative">
       {/* Mobile Sidebar Overlay */}
@@ -3382,8 +3936,19 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                   <span className="whitespace-nowrap">Reportes de Estudiantes</span>
                 </button>
 
+                <button
+                  id="nav-chatbotconfig"
+                  data-testid="nav-chatbot-config"
+                  onClick={() => { setActiveTab("chatbotconfig"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "chatbotconfig" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "chatbotconfig" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">smart_toy</span>
+                  <span className="whitespace-nowrap">Configurar Chatbot</span>
+                </button>
+
                 {getAuthUser()?.rol === "admin" && (
-                  <button 
+                  <button
                     onClick={() => { setActiveTab("users"); setIsMobileMenuOpen(false); }}
                     className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "users" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
                   >
@@ -3507,6 +4072,26 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                   <span className="material-symbols-outlined">model_training</span>
                   <span>Auditoría ML</span>
                 </button>
+                <button
+                  id="nav-chatbotmonitor"
+                  data-testid="nav-chatbot-monitor"
+                  onClick={() => { setActiveTab("chatbotmonitor"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "chatbotmonitor" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "chatbotmonitor" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">smart_toy</span>
+                  <span>Desempeño del Chatbot</span>
+                </button>
+                <button
+                  id="nav-audit"
+                  data-testid="nav-audit"
+                  onClick={() => { setActiveTab("audit"); setIsMobileMenuOpen(false); }}
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "audit" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "audit" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">fact_check</span>
+                  <span>Auditoría del Sistema</span>
+                </button>
               </div>
             )}
           </div>
@@ -3557,6 +4142,9 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                  activeTab === "exports" ? "Exportación de Datos" :
                  activeTab === "monitoring" ? "Monitoreo en Vivo" :
                  activeTab === "mlaudit" ? "Auditoría ML" :
+                 activeTab === "chatbotmonitor" ? "Desempeño del Chatbot" :
+                 activeTab === "audit" ? "Auditoría del Sistema" :
+                 activeTab === "chatbotconfig" ? "Configurar Chatbot" :
                  "Configuración"}
               </h1>
             </div>
@@ -3658,6 +4246,9 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
               {activeTab === "exports" && renderExports()}
               {activeTab === "monitoring" && renderMonitoring()}
               {activeTab === "mlaudit" && renderMLAudit()}
+              {activeTab === "chatbotmonitor" && renderChatbotMonitor()}
+              {activeTab === "audit" && renderAudit()}
+              {activeTab === "chatbotconfig" && renderChatbotConfig()}
             </div>
           )}
         </div>
