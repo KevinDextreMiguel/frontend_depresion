@@ -132,8 +132,8 @@ export default function App() {
   };
 
   const cancelConsent = () => {
+    // Solo cerrar el modal: el usuario permanece en la pantalla desde la que lo abrió
     setShowConsent(false);
-    setCurrentScreen("landing");
   };
 
   const handleQuestionnaireComplete = async (wizardPayload: CuestionarioCompletoPayload) => {
@@ -185,6 +185,29 @@ export default function App() {
     setSuicideAlert(false);
     // Clear saved progress if user aborts and returns home
     localStorage.removeItem("mindcheck_phq9_progress");
+  };
+
+  const handleShareApp = async () => {
+    const url = "https://frontend-depresion.vercel.app";
+    const shareData = {
+      title: "MindCheck",
+      text: "MindCheck: evaluación de bienestar emocional para estudiantes universitarios.",
+      url,
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        if ((err as DOMException)?.name === "AbortError") return; // el usuario canceló
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Enlace copiado al portapapeles");
+    } catch {
+      toast.info(`Comparte este enlace: ${url}`);
+    }
   };
 
   const handleNavigate = (screen: string) => {
@@ -497,6 +520,7 @@ export default function App() {
             {currentScreen === "student-evolution" && (
               <StudentEvolution
                 onBack={handleReturnHome}
+                onStartEvaluation={handleStartEvaluation}
               />
             )}
             {currentScreen === "support" && (
@@ -596,6 +620,7 @@ export default function App() {
             {currentScreen === "student-evolution" && (
               <StudentEvolution
                 onBack={() => setCurrentScreen(score > 0 ? "results" : "landing")}
+                onStartEvaluation={handleStartEvaluation}
               />
             )}
 
@@ -673,10 +698,13 @@ export default function App() {
               </a>
             </div>
             <div className="flex gap-4">
-              <button className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-slate-500 hover:text-primary transition-colors">
-                <span className="material-symbols-outlined text-xl">language</span>
-              </button>
-              <button className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-slate-500 hover:text-primary transition-colors">
+              <button
+                type="button"
+                onClick={handleShareApp}
+                aria-label="Compartir MindCheck"
+                title="Compartir MindCheck"
+                className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-slate-500 hover:text-primary transition-colors"
+              >
                 <span className="material-symbols-outlined text-xl">share</span>
               </button>
             </div>

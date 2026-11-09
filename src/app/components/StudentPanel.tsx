@@ -632,7 +632,10 @@ export function StudentPanel({
                 </div>
               )}
               {activeTab === "evolution" && (
-                <StudentEvolution onBack={() => setActiveTab("home")} />
+                <StudentEvolution
+                  onBack={() => setActiveTab("home")}
+                  onStartEvaluation={() => { setActiveTab("evaluation"); onStartEvaluation(); }}
+                />
               )}
               {activeTab === "support" && (
                 <Support

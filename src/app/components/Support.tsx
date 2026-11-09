@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, Menu, X } from "lucide-react";
-import { fetchChatbotResponses, getBotResponse, type ChatbotResponseItem } from "../lib/chatbotEngine";
+import { fetchChatbotResponses, getBotResponse, CRISIS_CONTACTS, CRISIS_RESPONSE, type ChatbotResponseItem } from "../lib/chatbotEngine";
 
 interface Message {
   id: number;
   text: string;
   sender: "user" | "bot";
   time?: string;
+  isCrisis?: boolean;
 }
 
 interface SupportProps {
@@ -32,6 +33,7 @@ export function Support({ onBack, onNavigate, onStartEvaluation }: SupportProps)
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(true);
   const [chatbotResponses, setChatbotResponses] = useState<ChatbotResponseItem[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -68,7 +70,8 @@ export function Support({ onBack, onNavigate, onStartEvaluation }: SupportProps)
       id: Date.now() + 1,
       text: botResponse,
       sender: "bot",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isCrisis: botResponse === CRISIS_RESPONSE,
     };
 
     setTimeout(() => {
@@ -81,6 +84,34 @@ export function Support({ onBack, onNavigate, onStartEvaluation }: SupportProps)
       handleSendMessage();
     }
   };
+
+  if (!isChatOpen) {
+    return (
+      <div className="bg-background font-body-md text-on-background w-full flex flex-col">
+        <main className="flex-grow flex items-center justify-center p-4 md:p-8">
+          <div className="w-full max-w-[800px] bg-white border border-outline-variant rounded-xl shadow-[0px_4px_20px_rgba(74,144,226,0.08)] p-8 flex flex-col items-center text-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-primary-container flex items-center justify-center">
+              <span className="material-symbols-outlined text-on-primary-container">smart_toy</span>
+            </div>
+            <h3 className="text-lg font-bold text-on-surface">MindCheck Assistant</h3>
+            <p className="text-sm text-outline max-w-sm">
+              El chat está cerrado. Puedes volver a abrirlo cuando lo necesites; tu conversación se mantiene.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsChatOpen(true)}
+              className="bg-primary text-on-primary px-6 py-2.5 rounded-full font-semibold hover:opacity-90 transition-all"
+            >
+              Abrir chat
+            </button>
+            <a href="tel:113" className="text-sm font-semibold text-rose-600 hover:underline">
+              ¿Estás en crisis? Llama a la Línea 113, opción 5
+            </a>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-background font-body-md text-on-background w-full flex flex-col">
@@ -101,7 +132,15 @@ export function Support({ onBack, onNavigate, onStartEvaluation }: SupportProps)
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => onNavigate("landing")} className="material-symbols-outlined text-on-primary opacity-80 hover:opacity-100">close</button>
+              <button
+                type="button"
+                onClick={() => setIsChatOpen(false)}
+                aria-label="Cerrar chat"
+                title="Cerrar chat"
+                className="material-symbols-outlined text-on-primary opacity-80 hover:opacity-100"
+              >
+                close
+              </button>
             </div>
           </div>
 
@@ -120,6 +159,20 @@ export function Support({ onBack, onNavigate, onStartEvaluation }: SupportProps)
                 </div>
                 <div className={`p-4 rounded-xl border border-outline-variant/30 ${message.sender === 'user' ? 'bg-primary text-on-primary rounded-tr-none' : 'bg-surface-container-low text-on-surface rounded-tl-none'}`}>
                   <p className="font-body-md whitespace-pre-line">{message.text}</p>
+                  {message.isCrisis && (
+                    <div className="mt-3 flex flex-col gap-2">
+                      {CRISIS_CONTACTS.map((c) => (
+                        <a
+                          key={c.numero}
+                          href={`tel:${c.numero}`}
+                          className="flex items-center gap-2 bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-rose-700 transition-all"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">call</span>
+                          Llamar al {c.numero} · {c.nombre}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                   <span className={`text-[10px] mt-2 block ${message.sender === 'user' ? 'opacity-70 text-right' : 'text-outline'}`}>
                     {message.time}
                   </span>

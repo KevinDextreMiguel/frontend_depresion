@@ -18,6 +18,23 @@ import {
 } from "@/lib/phq9";
 
 const QUESTIONNAIRE_ID = "b1990c88-e25f-4a87-8d07-7ff7bd8de693";
+
+interface Demographics {
+  edad: number;
+  genero: string;
+  carrera: string;
+  universidad: string;
+  ciclo: string;
+  promedio_ponderado: number;
+  situacion_pareja: string;
+  convivencia: string;
+  distrito_residencia: string;
+  trabajo_estudio: string;
+  migracion: string;
+  horas_sueno: number;
+  calidad_sueno: string;
+  historia_salud_mental: string;
+}
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || "http://localhost:8000";
 
 interface QuestionnaireProps {
@@ -65,7 +82,19 @@ export function Questionnaire({
   const [step, setStep] = useState<number>(0); // 0 = Demográficos, 1 = MSPSS, 2 = PHQ-9
 
   // Paso 0: Datos Demográficos
-  const [demographics, setDemographics] = useState({
+  // Los datos del perfil (registro) tienen prioridad sobre los valores por defecto
+  // y sobre borradores guardados, para que la ficha coincida con lo registrado.
+  const profileDemographics = () => {
+    const est = getAuthUser()?.estudiante;
+    const fromProfile: Partial<Demographics> = {};
+    if (typeof est?.edad === "number" && est.edad > 0) fromProfile.edad = est.edad;
+    if (est?.genero && (GENERO_OPTIONS as readonly string[]).includes(est.genero)) fromProfile.genero = est.genero;
+    if (est?.carrera) fromProfile.carrera = est.carrera;
+    if (est?.universidad) fromProfile.universidad = est.universidad;
+    return fromProfile;
+  };
+
+  const buildDefaultDemographics = (): Demographics => ({
     edad: 20,
     genero: "Femenino",
     carrera: "Ingeniería de Sistemas",
@@ -79,8 +108,11 @@ export function Questionnaire({
     migracion: "No",
     horas_sueno: 7.0,
     calidad_sueno: "Regular",
-    historia_salud_mental: "Nunca"
+    historia_salud_mental: "Nunca",
+    ...profileDemographics(),
   });
+
+  const [demographics, setDemographics] = useState<Demographics>(buildDefaultDemographics);
 
   // Paso 1: MSPSS
   const [mspssResponses, setMspssResponses] = useState<number[]>(new Array(12).fill(-1));
@@ -151,7 +183,7 @@ export function Questionnaire({
           const savedObj = data.respuestas;
           if (savedObj && typeof savedObj === "object") {
             if (savedObj.step !== undefined) setStep(savedObj.step);
-            if (savedObj.demographics) setDemographics(savedObj.demographics);
+            if (savedObj.demographics) setDemographics({ ...buildDefaultDemographics(), ...savedObj.demographics, ...profileDemographics() });
             if (savedObj.mspssResponses) setMspssResponses(savedObj.mspssResponses);
             if (savedObj.currentMspssQuestion !== undefined) setCurrentMspssQuestion(savedObj.currentMspssQuestion);
             if (savedObj.phq9Responses) setPhq9Responses(savedObj.phq9Responses);
@@ -199,22 +231,7 @@ export function Questionnaire({
       localStorage.removeItem(SESSION_KEY);
       
       setStep(0);
-      setDemographics({
-        edad: 20,
-        genero: "Femenino",
-        carrera: "Ingeniería de Sistemas",
-        universidad: "UPC",
-        ciclo: "5-6",
-        promedio_ponderado: 15.0,
-        situacion_pareja: "Soltero/a",
-        convivencia: "Con familia",
-        distrito_residencia: "Santiago de Surco",
-        trabajo_estudio: "Solo estudio",
-        migracion: "No",
-        horas_sueno: 7.0,
-        calidad_sueno: "Regular",
-        historia_salud_mental: "Nunca"
-      });
+      setDemographics(buildDefaultDemographics());
       setMspssResponses(new Array(12).fill(-1));
       setCurrentMspssQuestion(0);
       setPhq9Responses(new Array(9).fill(-1));

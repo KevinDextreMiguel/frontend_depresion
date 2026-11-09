@@ -49,9 +49,20 @@ const CRISIS_KEYWORDS = [
   "apoyo en crisis",
 ];
 
-const CRISIS_RESPONSE =
+export interface CrisisContact {
+  nombre: string;
+  numero: string;
+  detalle: string;
+}
+
+export const CRISIS_CONTACTS: CrisisContact[] = [
+  { nombre: "Línea 113, opción 5 (MINSA)", numero: "113", detalle: "Orientación en salud mental, gratuita y las 24 horas" },
+];
+
+export const CRISIS_RESPONSE =
   "Si estás en crisis o tienes pensamientos de hacerte daño, por favor contacta inmediatamente:\n\n" +
-  "No estás solo/a. Hay profesionales disponibles para ayudarte.";
+  CRISIS_CONTACTS.map((c) => `• ${c.nombre}: ${c.numero} (${c.detalle})`).join("\n") +
+  "\n\nNo estás solo/a. Hay profesionales disponibles para ayudarte.";
 
 interface FaqEntry {
   keywords: string[];

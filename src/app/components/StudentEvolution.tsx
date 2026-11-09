@@ -53,7 +53,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function StudentEvolution({ onBack }: { onBack: () => void }) {
+export function StudentEvolution({ onBack, onStartEvaluation }: { onBack: () => void; onStartEvaluation?: () => void }) {
   const [series, setSeries] = useState<Point[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -129,7 +129,7 @@ export function StudentEvolution({ onBack }: { onBack: () => void }) {
               Completa tu primera evaluación PHQ-9 para comenzar a ver tu progreso aquí.
             </p>
             <button
-              onClick={onBack}
+              onClick={onStartEvaluation ?? onBack}
               className="mt-4 bg-primary text-white px-6 py-2.5 rounded-full font-semibold hover:bg-blue-600 transition-all"
             >
               Hacer mi primera evaluación
