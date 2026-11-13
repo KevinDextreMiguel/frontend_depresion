@@ -2309,6 +2309,9 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                     <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">
                       <tr>
                         <th className="px-4 py-3 font-semibold">Algoritmo</th>
+                        <th className="px-4 py-3 font-semibold">ROC-AUC (OOF)</th>
+                        <th className="px-4 py-3 font-semibold">AP</th>
+                        <th className="px-4 py-3 font-semibold">Brier</th>
                         <th className="px-4 py-3 font-semibold">Accuracy</th>
                         <th className="px-4 py-3 font-semibold">F1-Score</th>
                         <th className="px-4 py-3 font-semibold">Precisión</th>
@@ -2320,6 +2323,9 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                       {retrainComparison.map((item) => (
                         <tr key={item.model_name} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 ${item.is_winner ? "bg-emerald-50/30 dark:bg-emerald-950/10 font-medium" : ""}`}>
                           <td className="px-4 py-3 text-slate-900 dark:text-white">{item.model_name}</td>
+                          <td className="px-4 py-3 text-slate-650 dark:text-slate-400">{item.roc_auc != null ? item.roc_auc.toFixed(3) : "—"}</td>
+                          <td className="px-4 py-3 text-slate-650 dark:text-slate-400">{item.average_precision != null ? item.average_precision.toFixed(3) : "—"}</td>
+                          <td className="px-4 py-3 text-slate-650 dark:text-slate-400">{item.brier != null ? item.brier.toFixed(3) : "—"}</td>
                           <td className="px-4 py-3 text-slate-650 dark:text-slate-400">{(item.accuracy * 100).toFixed(1)}%</td>
                           <td className="px-4 py-3 text-slate-650 dark:text-slate-400">{item.f1_score.toFixed(3)}</td>
                           <td className="px-4 py-3 text-slate-650 dark:text-slate-400">{(item.precision * 100).toFixed(1)}%</td>

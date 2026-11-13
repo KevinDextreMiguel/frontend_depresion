@@ -311,7 +311,7 @@ export function Results({
             <div className="bg-surface-container-low p-6 rounded-xl space-y-4 border border-outline-variant/20 md:col-span-2">
               <div className="flex items-center gap-3 text-violet-600 dark:text-violet-400">
                 <span className="material-symbols-outlined">model_training</span>
-                <h3 className="font-bold">Evaluación Predictiva (Modelo RandomForest)</h3>
+                <h3 className="font-bold">Evaluación Predictiva (Regresión Logística)</h3>
               </div>
 
               {interpretability?.ml_prediction ? (

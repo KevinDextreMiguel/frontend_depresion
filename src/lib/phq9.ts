@@ -80,9 +80,12 @@ export const MSPSS_QUESTIONS = [
 
 export const MSPSS_OPTIONS = [
   { value: 1, label: "Muy en desacuerdo" },
-  { value: 2, label: "En desacuerdo" },
-  { value: 3, label: "De acuerdo" },
-  { value: 4, label: "Muy de acuerdo" }
+  { value: 2, label: "Bastante en desacuerdo" },
+  { value: 3, label: "Algo en desacuerdo" },
+  { value: 4, label: "Ni de acuerdo ni en desacuerdo" },
+  { value: 5, label: "Algo de acuerdo" },
+  { value: 6, label: "Bastante de acuerdo" },
+  { value: 7, label: "Muy de acuerdo" }
 ] as const;
 
 export const CALIDAD_SUENIO_OPTIONS = [

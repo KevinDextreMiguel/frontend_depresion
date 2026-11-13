@@ -372,6 +372,9 @@ export interface ModelPerformance {
   precision: number;
   recall: number;
   f1_score: number;
+  roc_auc?: number | null;
+  average_precision?: number | null;
+  brier?: number | null;
   is_winner: boolean;
 }
 
