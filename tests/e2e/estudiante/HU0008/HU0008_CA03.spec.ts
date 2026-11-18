@@ -31,7 +31,7 @@ test('al seleccionar una respuesta, el sistema muestra un mensaje de registro ex
 
   await siguientePasoBtn.click();
   await expect(page.getByText('Pregunta 1 de 12')).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: 'De acuerdo', exact: true }).click();
+  await page.getByRole('button', { name: 'Algo de acuerdo', exact: true }).click();
 
   const confirmation = page.getByTestId('answer-save-confirmation');
   await expect(confirmation).toBeVisible({ timeout: 3_000 });

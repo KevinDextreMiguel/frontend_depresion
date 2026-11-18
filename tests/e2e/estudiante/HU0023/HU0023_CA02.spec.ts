@@ -28,10 +28,10 @@ test('el estudiante compara los niveles de riesgo de dos evaluaciones distintas 
   await expect(page.getByRole('heading', { name: 'Mi Evolución' })).toBeVisible({ timeout: 15_000 });
 
   await expect(page.getByText('Promedio')).toBeVisible();
-  await expect(page.getByText('Alto riesgo')).toBeVisible();
+  await expect(page.getByText('Momentos para conversar')).toBeVisible();
   await expect(page.getByText('evaluaciones').first()).toBeVisible();
 
-  // Ambos niveles de riesgo (mínimo/leve y severo) deben ser comparables en
-  // el historial de evaluaciones.
-  await expect(page.getByText('Severo').first()).toBeVisible({ timeout: 10_000 });
+  // Ambos niveles (mínimo y severo) deben ser comparables en el historial;
+  // al estudiante se le muestran con etiquetas amables.
+  await expect(page.getByText('Queremos acompañarte', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
 });

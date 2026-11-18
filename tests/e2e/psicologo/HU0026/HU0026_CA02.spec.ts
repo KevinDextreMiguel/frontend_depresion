@@ -33,7 +33,7 @@ test('agendar una sesión en un horario ya ocupado pide seleccionar otro horario
     );
     await sPage.reload();
     await completeQuestionnaire(sPage, { phq9DefaultLabel: 'Nunca', phq9Item9Label: 'Nunca' }, request);
-    await expect(sPage.getByText(/Nivel:/)).toBeVisible({ timeout: 15_000 });
+    await expect(sPage.getByTestId('result-summary')).toBeVisible({ timeout: 15_000 });
     await ctx.close();
   }
 

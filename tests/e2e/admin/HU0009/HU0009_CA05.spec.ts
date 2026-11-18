@@ -43,7 +43,7 @@ test('activar el protocolo de riesgo suicida queda registrado como evento audita
   await studentPage.reload();
 
   await completeQuestionnaire(studentPage, { phq9Item9Label: 'Siempre' }, request);
-  await expect(studentPage.getByRole('alert')).toBeVisible({ timeout: 15_000 });
+  await expect(studentPage.getByTestId('crisis-support')).toBeVisible({ timeout: 15_000 });
   await studentContext.close();
 
   await page.goto('/');

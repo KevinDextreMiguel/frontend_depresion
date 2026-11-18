@@ -38,7 +38,7 @@ test('al aceptar el consentimiento de salud mental, el sistema almacena fecha, h
   await page.reload();
 
   await completeQuestionnaire(page, { phq9DefaultLabel: 'Nunca', phq9Item9Label: 'Nunca' }, request);
-  await expect(page.getByText(/Nivel:/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('result-summary')).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole('link', { name: 'Privacidad', exact: true }).first().click();
   await expect(page.getByText('Privacidad y Consentimiento').first()).toBeVisible({ timeout: 10_000 });

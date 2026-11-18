@@ -35,7 +35,7 @@ test('el psicólogo accede al historial completo de evaluaciones de un estudiant
   await studentPage.reload();
 
   await completeQuestionnaire(studentPage, { phq9DefaultLabel: 'Nunca', phq9Item9Label: 'Nunca' }, request);
-  await expect(studentPage.getByText(/Nivel:/)).toBeVisible({ timeout: 15_000 });
+  await expect(studentPage.getByTestId('result-summary')).toBeVisible({ timeout: 15_000 });
   await studentContext.close();
 
   await page.goto('/');

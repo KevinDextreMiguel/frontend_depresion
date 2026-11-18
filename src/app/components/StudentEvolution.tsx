@@ -14,7 +14,8 @@ import {
 } from "recharts";
 import { isAuthenticated, getAccessToken } from "@/lib/auth";
 import { toast } from "sonner";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Activity, Calendar, BarChart2 } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, HeartHandshake, Activity, Calendar, BarChart2 } from "lucide-react";
+import { getStudentLevel, STUDENT_LEVELS, STUDENT_LEVEL_ORDER, suggestsSupport } from "@/lib/phq9";
 
 type Point = {
   fecha: string;
@@ -23,18 +24,13 @@ type Point = {
   alerta_suicidio: boolean;
 };
 
-const RISK_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  minimo: { label: "Mínimo", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950/30", border: "border-emerald-200 dark:border-emerald-800" },
-  leve: { label: "Leve", color: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-50 dark:bg-yellow-950/30", border: "border-yellow-200 dark:border-yellow-800" },
-  moderado: { label: "Moderado", color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-50 dark:bg-orange-950/30", border: "border-orange-200 dark:border-orange-800" },
-  moderadamente_severo: { label: "Moderadamente severo", color: "text-red-600 dark:text-red-400", bg: "bg-red-50 dark:bg-red-950/30", border: "border-red-200 dark:border-red-800" },
-  severo: { label: "Severo", color: "text-rose-700 dark:text-rose-400", bg: "bg-rose-50 dark:bg-rose-950/30", border: "border-rose-200 dark:border-rose-800" },
-};
+// Etiquetas y colores amables (ver lib/phq9.ts). Sin términos clínicos ni rojos de alerta.
+const levelOf = (key: string) => getStudentLevel(key) ?? STUDENT_LEVELS.leve;
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const point = payload[0].payload as Point;
-    const risk = RISK_CONFIG[point.nivel_riesgo] || RISK_CONFIG.leve;
+    const risk = levelOf(point.nivel_riesgo);
     return (
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-xl">
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">{label}</p>
@@ -43,8 +39,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           {risk.label}
         </span>
         {point.alerta_suicidio && (
-          <p className="text-xs text-rose-600 font-semibold mt-1 flex items-center gap-1">
-            <AlertTriangle size={10} /> Alerta suicidio
+          <p className="text-xs text-violet-600 dark:text-violet-300 font-medium mt-1 flex items-center gap-1">
+            <HeartHandshake size={11} /> El equipo de bienestar te acompaña
           </p>
         )}
       </div>
@@ -91,8 +87,8 @@ export function StudentEvolution({ onBack, onStartEvaluation }: { onBack: () => 
   const firstPoint = series.length > 0 ? series[0] : null;
   const trend = latestPoint && firstPoint ? latestPoint.puntaje - firstPoint.puntaje : 0;
   const avgScore = series.length > 0 ? Math.round(series.reduce((a, b) => a + b.puntaje, 0) / series.length) : 0;
-  const highRiskCount = series.filter(p => p.nivel_riesgo === "moderado" || p.nivel_riesgo === "moderadamente_severo" || p.nivel_riesgo === "severo").length;
-  const latestRisk = RISK_CONFIG[latestPoint?.nivel_riesgo || ""] || null;
+  const supportCount = series.filter(p => suggestsSupport(p.nivel_riesgo)).length;
+  const latestRisk = getStudentLevel(latestPoint?.nivel_riesgo);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F8FAFC] to-blue-50/30 dark:from-slate-950 dark:to-slate-900 font-manrope">
@@ -108,7 +104,7 @@ export function StudentEvolution({ onBack, onStartEvaluation }: { onBack: () => 
           </button>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Mi Evolución</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Seguimiento de tus evaluaciones PHQ-9</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Cómo te has ido sintiendo con el tiempo</p>
           </div>
         </div>
 
@@ -168,10 +164,10 @@ export function StudentEvolution({ onBack, onStartEvaluation }: { onBack: () => 
                     </>
                   ) : trend > 0 ? (
                     <>
-                      <TrendingUp size={28} className="text-red-500" />
+                      <TrendingUp size={28} className="text-indigo-400" />
                       <div>
-                        <p className="text-xl font-bold text-red-600 dark:text-red-400">+{trend} pts</p>
-                        <p className="text-xs text-red-500">Aumentando</p>
+                        <p className="text-xl font-bold text-indigo-600 dark:text-indigo-300">+{trend} pts</p>
+                        <p className="text-xs text-indigo-500">Semanas más pesadas</p>
                       </div>
                     </>
                   ) : (
@@ -195,12 +191,12 @@ export function StudentEvolution({ onBack, onStartEvaluation }: { onBack: () => 
                 </div>
               </div>
               
-              {/* Alto riesgo */}
+              {/* Momentos en que se sugirió conversar */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm">
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1 font-medium">Alto riesgo</p>
-                <p className="text-3xl font-bold text-slate-900 dark:text-white">{highRiskCount}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1 font-medium">Momentos para conversar</p>
+                <p className="text-3xl font-bold text-slate-900 dark:text-white">{supportCount}</p>
                 <p className="text-xs text-slate-500 mt-1">
-                  {highRiskCount === 0 ? "¡Sin evaluaciones de alto riesgo!" : `de ${series.length} evaluaciones`}
+                  {supportCount === 0 ? "Sigue cuidándote así" : `de ${series.length} evaluaciones`}
                 </p>
               </div>
             </div>
@@ -209,29 +205,19 @@ export function StudentEvolution({ onBack, onStartEvaluation }: { onBack: () => 
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="font-semibold text-slate-900 dark:text-white">Evolución del Puntaje PHQ-9</h2>
+                  <h2 className="font-semibold text-slate-900 dark:text-white">Tu recorrido</h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Seguimiento temporal de tus evaluaciones</p>
                 </div>
               </div>
               
               {/* Leyenda de niveles */}
               <div className="flex flex-wrap gap-3 mb-4">
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                  <div className="w-3 h-0.5 bg-green-400" />
-                  <span>Mínimo (0-4)</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                  <div className="w-3 h-0.5 bg-yellow-400" />
-                  <span>Leve (5-9)</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                  <div className="w-3 h-0.5 bg-orange-400" />
-                  <span>Moderado (10-14)</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                  <div className="w-3 h-0.5 bg-red-500" />
-                  <span>Severo (20+)</span>
-                </div>
+                {STUDENT_LEVEL_ORDER.map((key) => (
+                  <div key={key} className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <div className={`w-2.5 h-2.5 rounded-full ${STUDENT_LEVELS[key].dot}`} />
+                    <span>{STUDENT_LEVELS[key].label} ({STUDENT_LEVELS[key].range})</span>
+                  </div>
+                ))}
               </div>
 
               <div style={{ width: "100%", height: 280 }}>
@@ -248,9 +234,9 @@ export function StudentEvolution({ onBack, onStartEvaluation }: { onBack: () => 
                     <YAxis domain={[0, 27]} tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
                     <Tooltip content={<CustomTooltip />} />
                     {/* Líneas de referencia para niveles */}
-                    <ReferenceLine y={5} stroke="#FDE047" strokeDasharray="4 4" strokeWidth={1} />
-                    <ReferenceLine y={10} stroke="#FB923C" strokeDasharray="4 4" strokeWidth={1} />
-                    <ReferenceLine y={20} stroke="#EF4444" strokeDasharray="4 4" strokeWidth={1} />
+                    <ReferenceLine y={5} stroke="#BAE6FD" strokeDasharray="4 4" strokeWidth={1} />
+                    <ReferenceLine y={10} stroke="#BFDBFE" strokeDasharray="4 4" strokeWidth={1} />
+                    <ReferenceLine y={20} stroke="#DDD6FE" strokeDasharray="4 4" strokeWidth={1} />
                     <Area
                       type="monotone"
                       dataKey="puntaje"
@@ -273,7 +259,7 @@ export function StudentEvolution({ onBack, onStartEvaluation }: { onBack: () => 
               </div>
               <div className="space-y-3">
                 {[...series].reverse().map((s, idx) => {
-                  const risk = RISK_CONFIG[s.nivel_riesgo] || RISK_CONFIG.leve;
+                  const risk = levelOf(s.nivel_riesgo);
                   return (
                     <div
                       key={idx}
@@ -286,8 +272,8 @@ export function StudentEvolution({ onBack, onStartEvaluation }: { onBack: () => 
                         <div>
                           <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{s.fecha}</p>
                           {s.alerta_suicidio && (
-                            <p className="text-xs text-rose-500 flex items-center gap-1 mt-0.5">
-                              <AlertTriangle size={10} /> Alerta de suicidio
+                            <p className="text-xs text-violet-600 dark:text-violet-300 flex items-center gap-1 mt-0.5">
+                              <HeartHandshake size={11} /> El equipo de bienestar te acompaña
                             </p>
                           )}
                         </div>

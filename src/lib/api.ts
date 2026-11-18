@@ -23,6 +23,16 @@ export interface Statistics {
     moderatelySevere: number;
     severe: number;
   };
+  /** Admin: estudiantes activos registrados. Psicólogo: estudiantes asignados. */
+  totalStudents?: number;
+  /** Estudiantes del mismo alcance con al menos una evaluación. */
+  evaluatedStudents?: number;
+  /** Casos con ítem 9 positivo cuyo caso sigue abierto. */
+  activeSuicideAlerts?: number;
+  /** Casos clínicos abiertos. */
+  openCases?: number;
+  /** Casos pendientes de primer contacto. */
+  pendingContact?: number;
 }
 
 export interface ReportItem {
@@ -44,6 +54,10 @@ export interface DerivationItem {
   institucion?: string | null;
   nivel_riesgo: string;
   alerta_suicidio: boolean;
+  /** ID anónimo del estudiante (#XXXXXX). */
+  id_anonimo?: string | null;
+  /** Puntaje PHQ-9 de la evaluación que originó el caso. */
+  puntaje?: number | null;
 }
 
 export interface DerivationUpdateRequest {
@@ -63,6 +77,9 @@ export interface StudentHistoryItem {
   estado_evaluacion?: string | null;
   comentarios?: string | null;
   observaciones?: ObservationResponse[];
+  interpretabilidad?: Record<string, any> | null;
+  /** Respuestas PHQ-9 ítem por ítem (0-3), en orden. */
+  respuestas_phq9?: number[] | null;
 }
 
 export interface StudentEvolutionItem {
@@ -81,6 +98,8 @@ export interface AssignedPatientItem {
   puntaje: number;
   alerta_suicidio: boolean;
   estado_evaluacion?: string | null;
+  /** Estado del caso clínico de la última evaluación, si lo hay. */
+  estado_caso?: string | null;
 }
 
 export interface ObservationCreateRequest {
@@ -95,6 +114,8 @@ export interface ObservationResponse {
   texto: string;
   created_at: string;
   updated_at?: string | null;
+  /** True si quien consulta puede editarla (autor o admin). */
+  editable?: boolean | null;
 }
 
 export interface SubmitQuestionnaireResult {
@@ -810,6 +831,32 @@ export interface AppointmentResponse {
   estado: string;
   descripcion?: string | null;
   created_at: string;
+  /** ID anónimo del estudiante (#XXXXXX), como en el resto del panel. */
+  id_anonimo?: string | null;
+  carrera?: string | null;
+}
+
+export type AppointmentItem = AppointmentResponse;
+
+export interface AppointmentUpdateRequest {
+  estado?: "programada" | "completada" | "no_asistio" | "cancelada";
+  fecha_inicio?: string; // ISO, para reprogramar
+  duracion_minutos?: number;
+  descripcion?: string | null;
+}
+
+export async function updateAppointment(
+  accessToken: string,
+  appointmentId: string,
+  payload: AppointmentUpdateRequest,
+): Promise<AppointmentItem> {
+  const response = await fetch(apiPath(`/admin/appointments/${appointmentId}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(await parseError(response));
+  return response.json();
 }
 
 export async function fetchAppointments(accessToken: string): Promise<AppointmentItem[]> {
@@ -880,6 +927,8 @@ export interface InterventionResponse {
   fecha_intervencion: string;
   created_at: string;
   updated_at?: string | null;
+  /** True si la registró quien consulta. */
+  es_propia?: boolean | null;
 }
 
 export async function fetchInterventions(

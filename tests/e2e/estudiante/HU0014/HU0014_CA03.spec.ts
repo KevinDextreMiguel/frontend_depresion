@@ -32,7 +32,7 @@ test('al responder con un indicador de malestar alto, el chatbot emite un mensaj
   await siguientePasoBtn.click();
   for (let i = 1; i <= 12; i++) {
     await expect(page.getByText(`Pregunta ${i} de 12`)).toBeVisible({ timeout: 10_000 });
-    await page.getByRole('button', { name: 'De acuerdo', exact: true }).click();
+    await page.getByRole('button', { name: 'Algo de acuerdo', exact: true }).click();
   }
   await expect(page.getByText('Pregunta 1 de 9')).toBeVisible({ timeout: 10_000 });
   // "Casi siempre" (value=2) es un indicador de malestar alto en un ítem

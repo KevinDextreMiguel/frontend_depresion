@@ -14,9 +14,8 @@ test('finalizar el cuestionario con riesgo detectado muestra mensaje de apoyo y 
 
   await completeQuestionnaire(page, { phq9Item9Label: 'Siempre' }, request);
 
-  const banner = page.getByRole('alert');
+  const banner = page.getByTestId('crisis-support');
   await expect(banner).toBeVisible({ timeout: 15_000 });
-  await expect(banner).toContainText('Tu bienestar es prioritario');
-  await expect(banner).toContainText('No estás solo/a');
-  await expect(banner.getByRole('link', { name: /Llamar ahora/i })).toHaveAttribute('href', 'tel:113');
+    await expect(banner).toContainText('No estás solo/a');
+  await expect(banner.getByRole('link', { name: /Hablar con alguien ahora/i })).toHaveAttribute('href', 'tel:113');
 });

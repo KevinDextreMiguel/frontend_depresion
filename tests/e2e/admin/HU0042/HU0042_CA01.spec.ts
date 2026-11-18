@@ -11,7 +11,7 @@ import { completeQuestionnaire } from '../../../helpers/questionnaire';
  * Resultado esperado: el sistema muestra la variación en el nivel de riesgo.
  *
  * HALLAZGO: la HU describe esta capacidad "Como psicólogo", pero la sección
- * "Efectividad de Intervenciones" vive dentro del Dashboard Analítico
+ * "Cambio en PHQ-9 alrededor de las intervenciones" vive dentro del Dashboard Analítico
  * (`nav-dashboard`), visible solo para admin en la UI (mismo hallazgo que
  * HU0037, ver admin/HU0037/HU0037_CA01) — aunque el endpoint
  * `GET /api/admin-ext/interventions/effectiveness` acepta ambos roles.
@@ -89,6 +89,6 @@ test('el administrador ve la variación en el nivel de riesgo asociada a una int
   await page.locator('#nav-dashboard, [id="nav-dashboard"]').first().click();
   await expect(page.getByText('Dashboard Analítico')).toBeVisible({ timeout: 10_000 });
 
-  await expect(page.getByText('Efectividad de Intervenciones')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('Cambio en PHQ-9 alrededor de las intervenciones')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText('Terapia Individual').first()).toBeVisible({ timeout: 15_000 });
 });

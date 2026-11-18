@@ -12,7 +12,7 @@ import { completeQuestionnaire } from '../../../helpers/questionnaire';
  * detectado.
  *
  * Se verifica que un caso recién creado con alerta de suicidio aparece en la
- * sección "Alertas Críticas Recientes" marcado explícitamente como
+ * sección "Casos que requieren acción" marcado explícitamente como
  * "Urgente" — la máxima prioridad del sistema (`nivel_prioridad === "urgente"`).
  */
 test('un caso con riesgo suicida aparece marcado como Urgente en el panel del psicólogo', async ({ page, browser, request }) => {
@@ -39,12 +39,12 @@ test('un caso con riesgo suicida aparece marcado como Urgente en el panel del ps
   await studentPage.reload();
 
   await completeQuestionnaire(studentPage, { phq9Item9Label: 'Siempre' }, request);
-  await expect(studentPage.getByRole('alert')).toBeVisible({ timeout: 15_000 });
+  await expect(studentPage.getByTestId('crisis-support')).toBeVisible({ timeout: 15_000 });
   await studentContext.close();
 
   await page.goto('/');
   await page.reload();
 
-  const alertsSection = page.locator('div', { has: page.getByRole('heading', { name: 'Alertas Críticas Recientes' }) }).first();
+  const alertsSection = page.locator('div', { has: page.getByRole('heading', { name: 'Casos que requieren acción' }) }).first();
   await expect(alertsSection.getByText('Urgente').first()).toBeVisible({ timeout: 15_000 });
 });

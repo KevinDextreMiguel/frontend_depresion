@@ -516,7 +516,7 @@ export function Questionnaire({
               <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white">Ficha de Información Personal e Hábitos</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Esta información es necesaria para que nuestro modelo de aprendizaje automático pueda contextualizar tu nivel de riesgo y entregarte recomendaciones precisas.
+                  Esta información nos ayuda a entender mejor tu contexto y a darte recomendaciones más útiles para ti.
                 </p>
               </div>
 

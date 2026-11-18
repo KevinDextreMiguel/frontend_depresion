@@ -54,9 +54,9 @@ test('al reingresar tras una interrupción, el sistema conserva el progreso guar
   // "interrumpir" la sesión.
   await siguientePasoBtn.click();
   await expect(page.getByText('Pregunta 1 de 12')).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: 'De acuerdo', exact: true }).click();
+  await page.getByRole('button', { name: 'Algo de acuerdo', exact: true }).click();
   await expect(page.getByText('Pregunta 2 de 12')).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: 'De acuerdo', exact: true }).click();
+  await page.getByRole('button', { name: 'Algo de acuerdo', exact: true }).click();
   await expect(page.getByText('Pregunta 3 de 12')).toBeVisible({ timeout: 10_000 });
 
   // Deja tiempo para el auto-guardado con debounce (ver Questionnaire.tsx)

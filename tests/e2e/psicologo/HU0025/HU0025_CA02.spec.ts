@@ -38,7 +38,7 @@ test('el psicólogo combina varios niveles de riesgo en el filtro y ve los resul
     );
     await sPage.reload();
     await completeQuestionnaire(sPage, { phq9DefaultLabel: phq9Label, phq9Item9Label: 'Nunca' }, request);
-    await expect(sPage.getByText(/Nivel:/)).toBeVisible({ timeout: 15_000 });
+    await expect(sPage.getByTestId('result-summary')).toBeVisible({ timeout: 15_000 });
     await ctx.close();
   }
 

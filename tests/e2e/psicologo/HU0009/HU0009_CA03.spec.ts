@@ -41,7 +41,7 @@ test('un caso con riesgo suicida genera una alerta visible para el psicólogo', 
   await studentPage.reload();
 
   await completeQuestionnaire(studentPage, { phq9Item9Label: 'Siempre' }, request);
-  await expect(studentPage.getByRole('alert')).toBeVisible({ timeout: 15_000 });
+  await expect(studentPage.getByTestId('crisis-support')).toBeVisible({ timeout: 15_000 });
   await studentContext.close();
 
   // Vista del psicólogo: el panel de notificaciones hace polling cada 30s;

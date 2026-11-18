@@ -42,7 +42,7 @@ test('el psicólogo exporta el reporte PDF de un estudiante con evaluación y ob
   await studentPage.reload();
 
   await completeQuestionnaire(studentPage, { phq9DefaultLabel: 'Casi siempre', phq9Item9Label: 'Nunca' }, request);
-  await expect(studentPage.getByText(/Nivel:/)).toBeVisible({ timeout: 15_000 });
+  await expect(studentPage.getByTestId('result-summary')).toBeVisible({ timeout: 15_000 });
   await studentContext.close();
 
   await page.goto('/');

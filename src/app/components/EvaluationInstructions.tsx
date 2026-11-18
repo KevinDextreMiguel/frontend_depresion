@@ -42,7 +42,7 @@ export function EvaluationInstructions({ onBegin, onCancel, onShowSupport }: Eva
             <div className="rounded-3xl bg-surface-variant/80 p-6 border border-outline-variant">
               <h2 className="text-xl font-semibold text-on-surface">¿Por qué es importante?</h2>
               <p className="mt-4 text-body-md text-on-surface-variant leading-7">
-                Esta herramienta ayuda a identificar señales de riesgo emocional y suicida. Si tu respuesta al ítem 9 indica riesgo, se activará un protocolo de atención prioritaria.
+                Esta herramienta te ayuda a reconocer cómo te has sentido. Si alguna respuesta muestra que estás pasando por un momento difícil, una persona del equipo de bienestar de la UPC se pondrá en contacto contigo para acompañarte.
               </p>
             </div>
 

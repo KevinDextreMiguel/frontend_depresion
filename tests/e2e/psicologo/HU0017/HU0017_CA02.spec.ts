@@ -40,7 +40,7 @@ test('el psicólogo ve una explicación clara y comprensible del resultado de la
   await studentPage.reload();
 
   await completeQuestionnaire(studentPage, { phq9DefaultLabel: 'Casi siempre', phq9Item9Label: 'Nunca' }, request);
-  await expect(studentPage.getByText(/Nivel:/)).toBeVisible({ timeout: 15_000 });
+  await expect(studentPage.getByTestId('result-summary')).toBeVisible({ timeout: 15_000 });
   await studentContext.close();
 
   await page.goto('/');
@@ -50,7 +50,7 @@ test('el psicólogo ve una explicación clara y comprensible del resultado de la
   const row = page.locator('tr', { hasText: '#' }).first();
   await row.getByRole('button', { name: 'Ver historial' }).click();
 
-  await expect(page.getByText('Factores que influyeron en la predicción (HU0017)').first()).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText(/Predicción del modelo:/).first()).toBeVisible();
-  await expect(page.getByText(/explicación basada en las variables de entrada del modelo/i).first()).toBeVisible();
+  await expect(page.getByText('Estimación complementaria (sueño y apoyo social)').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/Probabilidad estimada de PHQ-9 ≥ 10|se usó el puntaje PHQ-9/).first()).toBeVisible();
+  await expect(page.getByText(/Tamizaje, no diagnóstico/i).first()).toBeVisible();
 });

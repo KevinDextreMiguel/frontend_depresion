@@ -14,7 +14,7 @@ test('el estudiante ve su nivel de riesgo de forma clara y destacada al terminar
 
   await completeQuestionnaire(page, { phq9DefaultLabel: 'Algunas veces', phq9Item9Label: 'Nunca' }, request);
 
-  await expect(page.getByText('Tu Perfil de Salud Mental')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText(/Nivel:/)).toBeVisible();
+  await expect(page.getByText('Cómo te has sentido estas dos semanas')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('result-summary')).toBeVisible();
   await expect(page.getByText(/Puntaje: \d+\/27/)).toBeVisible();
 });

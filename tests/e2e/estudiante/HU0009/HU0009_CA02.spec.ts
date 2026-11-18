@@ -20,5 +20,5 @@ test('un puntaje total bajo con el ítem 9 positivo igual activa el protocolo', 
   await completeQuestionnaire(page, { phq9DefaultLabel: 'Nunca', phq9Item9Label: 'Algunas veces' }, request);
 
   await expect(page.getByText('Puntaje: 1/27')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByTestId('crisis-support')).toBeVisible();
 });

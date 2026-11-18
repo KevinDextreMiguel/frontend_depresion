@@ -87,7 +87,7 @@ const STATIC_FAQ: FaqEntry[] = [
   {
     keywords: ["tengo sintomas", "que hago si tengo sintomas", "me siento mal"],
     answer:
-      "Si tus resultados indican síntomas moderados o severos, te recomendamos contactar a un profesional de salud mental. En la pantalla de resultados encontrarás recursos de apoyo.",
+      "Si tus resultados muestran que estas semanas han sido difíciles, conversar con un profesional puede ayudarte. En la pantalla de resultados y en la sección de soporte encontrarás a quién acudir.",
   },
   {
     keywords: ["es un diagnostico", "es diagnostico", "esto es un diagnostico"],
@@ -102,7 +102,7 @@ const STATIC_FAQ: FaqEntry[] = [
   {
     keywords: ["como funciona", "que hace la app", "que hace mindcheck", "para que sirve"],
     answer:
-      "Respondes el cuestionario PHQ-9 y un modelo de Machine Learning basado en árboles de decisión analiza tus respuestas para estimar un nivel de riesgo (bajo, medio o alto), que puede ser revisado por un psicólogo.",
+      "Respondes el cuestionario PHQ-9 y algunas preguntas sobre tu sueño y tu red de apoyo. Con eso te mostramos un resumen de cómo te has sentido y sugerencias para cuidarte; un psicólogo puede revisarlo para acompañarte.",
   },
   {
     keywords: ["olvide mi contrasena", "recuperar contrasena", "cambiar contrasena", "restablecer contrasena"],

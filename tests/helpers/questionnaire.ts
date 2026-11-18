@@ -16,7 +16,15 @@ import { expect, type Page, type APIRequestContext } from '@playwright/test';
  * más baja que aún es "positiva" (>=1) según la lógica de riesgo del backend.
  */
 export const PHQ9_OPTION_LABELS = ['Nunca', 'Algunas veces', 'Casi siempre', 'Siempre'] as const;
-export const MSPSS_OPTION_LABELS = ['Muy en desacuerdo', 'En desacuerdo', 'De acuerdo', 'Muy de acuerdo'] as const;
+export const MSPSS_OPTION_LABELS = [
+  'Muy en desacuerdo',
+  'Bastante en desacuerdo',
+  'Algo en desacuerdo',
+  'Ni de acuerdo ni en desacuerdo',
+  'Algo de acuerdo',
+  'Bastante de acuerdo',
+  'Muy de acuerdo',
+] as const;
 
 export interface QuestionnaireOptions {
   /** Etiqueta de opción a elegir en los ítems 1–8 del PHQ-9 (por defecto "Nunca", value=0). */
@@ -39,7 +47,7 @@ export async function completeQuestionnaire(
   request?: APIRequestContext
 ): Promise<void> {
   const phq9Default = options.phq9DefaultLabel ?? 'Nunca';
-  const mspssLabel = options.mspssLabel ?? 'De acuerdo';
+  const mspssLabel = options.mspssLabel ?? 'Algo de acuerdo';
 
   await page.goto('/');
 

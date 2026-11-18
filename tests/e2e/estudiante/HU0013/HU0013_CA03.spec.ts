@@ -37,7 +37,7 @@ test('al recargar la página tras avanzar, el chatbot retoma la sesión desde el
   await page.getByTestId('chatbot-close-button').click();
   await siguientePasoBtn.click();
   for (let i = 0; i < 3; i++) {
-    await page.getByRole('button', { name: 'De acuerdo', exact: true }).click();
+    await page.getByRole('button', { name: 'Algo de acuerdo', exact: true }).click();
   }
 
   // Confirmamos que hay progreso guiado y de cuestionario persistidos.

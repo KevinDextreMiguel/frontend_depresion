@@ -41,7 +41,7 @@ test('entre múltiples alertas, el psicólogo distingue el caso más urgente (ri
     );
     await sPage.reload();
     await completeQuestionnaire(sPage, { phq9DefaultLabel: 'Casi siempre', phq9Item9Label: item9 }, request);
-    await expect(sPage.getByText(/Nivel:|Puntaje:/)).toBeVisible({ timeout: 15_000 });
+    await expect(sPage.getByText(/Puntaje: \d+\/27/)).toBeVisible({ timeout: 15_000 });
     await ctx.close();
   }
 

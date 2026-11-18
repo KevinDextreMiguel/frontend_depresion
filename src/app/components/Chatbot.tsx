@@ -160,7 +160,7 @@ export function Chatbot() {
       if (suicideAlert) {
         const msg = {
           id: Date.now() + 20,
-          text: "Gracias por compartir. Si tienes pensamientos de hacerte daño, por favor detente y contacta ayuda inmediata: Línea de Prevención del Suicidio 0800-00-232 (24/7). Puedo también mostrarte recursos locales si lo deseas.",
+          text: "Gracias por contarlo. Lo que sientes importa y no tienes que pasarlo solo/a. Si en algún momento quieres hablar con alguien, la Línea 113, opción 5, atiende gratis las 24 horas. Puedes seguir con el cuestionario a tu ritmo.",
           sender: 'bot',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         } as Message;

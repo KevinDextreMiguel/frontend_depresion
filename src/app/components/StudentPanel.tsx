@@ -7,6 +7,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from "recharts";
 import { StudentEvolution } from "./StudentEvolution";
+import { getStudentLevel, suggestsSupport } from "@/lib/phq9";
 import { Support } from "./Support";
 import { PrivacyConsentSettings } from "./PrivacyConsentSettings";
 
@@ -23,13 +24,7 @@ interface StudentPanelProps {
   children?: React.ReactNode;
 }
 
-const RISK_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {
-  minimo: { label: "Mínimo", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950/30", border: "border-emerald-200 dark:border-emerald-800", dot: "bg-emerald-400" },
-  leve: { label: "Leve", color: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-50 dark:bg-yellow-950/30", border: "border-yellow-200 dark:border-yellow-800", dot: "bg-yellow-400" },
-  moderado: { label: "Moderado", color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-50 dark:bg-orange-950/30", border: "border-orange-200 dark:border-orange-800", dot: "bg-orange-400" },
-  moderadamente_severo: { label: "Mod. Severo", color: "text-red-600 dark:text-red-400", bg: "bg-red-50 dark:bg-red-950/30", border: "border-red-200 dark:border-red-800", dot: "bg-red-400" },
-  severo: { label: "Severo", color: "text-rose-700 dark:text-rose-400", bg: "bg-rose-50 dark:bg-rose-950/30", border: "border-rose-200 dark:border-rose-800", dot: "bg-rose-500" },
-};
+// Etiquetas y colores amables para el estudiante: ver STUDENT_LEVELS en lib/phq9.ts.
 
 const NAV_ITEMS: { tab: StudentTab; icon: string; label: string }[] = [
   { tab: "home", icon: "home", label: "Inicio" },
@@ -121,7 +116,7 @@ export function StudentPanel({
   };
 
   const latestEval = evolutionData.length > 0 ? evolutionData[evolutionData.length - 1] : null;
-  const latestRiskConfig = RISK_CONFIG[latestEval?.nivel_riesgo || lastRisk || ""] || null;
+  const latestRiskConfig = getStudentLevel(latestEval?.nivel_riesgo || lastRisk || "");
 
   // ── Home tab ─────────────────────────────────────────────────────────────
   const renderHome = () => (
@@ -341,18 +336,18 @@ export function StudentPanel({
         {/* Diagnostic Badge */}
         {latestEval && latestRiskConfig && (
           <div className={`mb-8 p-4 rounded-xl border ${latestRiskConfig.bg} ${latestRiskConfig.border} flex items-start gap-3`}>
-            <div className={`p-2 rounded-lg ${latestRiskConfig.badgeBg} ${latestRiskConfig.badgeText}`}>
+            <div className={`p-2 rounded-lg bg-white/70 dark:bg-slate-900/40 ${latestRiskConfig.color}`}>
               <span className="material-symbols-outlined">{latestRiskConfig.icon}</span>
             </div>
             <div>
-              <h4 className={`font-bold ${latestRiskConfig.text}`}>
-                Estado actual: {latestRiskConfig.label}
+              <h4 className={`font-bold ${latestRiskConfig.color}`}>
+                Tu última evaluación: {latestRiskConfig.label}
               </h4>
-              <p className={`text-sm mt-1 ${latestRiskConfig.text} opacity-80`}>
-                Según tu evaluación del {latestEval.fecha}. 
-                {latestEval.nivel_riesgo.toLowerCase().includes("severo") || latestEval.nivel_riesgo.toLowerCase().includes("moderado") 
-                  ? " Te recomendamos revisar la sección de soporte para contactar a un profesional." 
-                  : " Recuerda seguir cuidando de tu salud mental periódicamente."}
+              <p className={`text-sm mt-1 ${latestRiskConfig.color} opacity-80`}>
+                Del {latestEval.fecha}.
+                {suggestsSupport(latestEval.nivel_riesgo)
+                  ? " Si quieres conversar, en la sección de soporte encontrarás a profesionales dispuestos a escucharte."
+                  : " Sigue dándote espacios para cuidarte."}
               </p>
             </div>
           </div>

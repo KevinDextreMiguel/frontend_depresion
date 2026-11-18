@@ -47,7 +47,7 @@ test('al llegar a la última pregunta del PHQ-9, el progreso indica 100% complet
   await siguientePasoBtn.click();
   for (let i = 1; i <= 12; i++) {
     await expect(page.getByText(`Pregunta ${i} de 12`)).toBeVisible({ timeout: 10_000 });
-    await page.getByRole('button', { name: 'De acuerdo', exact: true }).click();
+    await page.getByRole('button', { name: 'Algo de acuerdo', exact: true }).click();
   }
   for (let i = 1; i <= 8; i++) {
     await expect(page.getByText(`Pregunta ${i} de 9`)).toBeVisible({ timeout: 10_000 });

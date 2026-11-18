@@ -12,7 +12,9 @@ import {
   retrainModel,
   fetchStudentHistory,
   fetchAssignedPatients,
+  fetchAppointments,
   createAppointment,
+  updateAppointment,
   createObservation,
   updateObservation,
   fetchChatbotResponses,
@@ -62,6 +64,7 @@ import {
   type ObservationResponse,
   type AssignedPatientItem,
   type AppointmentCreateRequest,
+  type AppointmentItem,
   type InterventionResponse,
   type NotificationResponse,
   type BackupConfigResponse,
@@ -72,7 +75,36 @@ interface AdminPanelProps {
   onLogout: () => void;
 }
 
-type TabType = "overview" | "analytics" | "reports" | "assigned" | "model" | "users" | "settings" | "backups" | "dashboard" | "monitoring" | "mlaudit" | "exports" | "chatbotmonitor" | "audit" | "chatbotconfig";
+type TabType = "overview" | "cases" | "analytics" | "reports" | "assigned" | "appointments" | "model" | "users" | "settings" | "backups" | "dashboard" | "monitoring" | "mlaudit" | "exports" | "chatbotmonitor" | "audit" | "chatbotconfig";
+
+// Estados del caso clínico (derivación). Deben coincidir con utils/clinical.py.
+const CASE_STATE_LABELS: Record<string, string> = {
+  pendiente: "Pendiente de contacto",
+  contactado: "Contactado",
+  en_seguimiento: "En seguimiento",
+  derivado_externo: "Derivado a servicio externo",
+  cerrado: "Cerrado",
+  atendido: "Atendido",
+};
+const OPEN_CASE_STATES = new Set(["pendiente", "contactado", "en_seguimiento", "atendido"]);
+const CASE_ACTION_OPTIONS = ["contactado", "en_seguimiento", "derivado_externo", "cerrado"] as const;
+const APPOINTMENT_STATE_LABELS: Record<string, string> = {
+  programada: "Programada",
+  completada: "Completada",
+  no_asistio: "No asistió",
+  cancelada: "Cancelada",
+};
+const PHQ9_SHORT_ITEMS = [
+  "Anhedonia",
+  "Ánimo deprimido",
+  "Sueño",
+  "Energía",
+  "Apetito",
+  "Autovaloración",
+  "Concentración",
+  "Psicomotricidad",
+  "Ideación muerte/autolesión",
+];
 
 const RISK_LEVEL_OPTIONS = [
   { value: "minimo", label: "Mínimo" },
@@ -101,6 +133,16 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [retrainMessage, setRetrainMessage] = useState<string | null>(null);
   const [retrainComparison, setRetrainComparison] = useState<any[] | null>(null);
   const [updatingDerivationId, setUpdatingDerivationId] = useState<string | null>(null);
+  // Registro de acción sobre un caso (nota obligatoria al cambiar estado)
+  const [caseActionTarget, setCaseActionTarget] = useState<DerivationItem | null>(null);
+  const [caseActionEstado, setCaseActionEstado] = useState<string>("");
+  const [caseActionNota, setCaseActionNota] = useState("");
+  const [caseActionError, setCaseActionError] = useState<string | null>(null);
+  const [casesFilter, setCasesFilter] = useState<"open" | "closed" | "all">("open");
+  // Ciclo de vida de citas
+  const [updatingAppointmentId, setUpdatingAppointmentId] = useState<string | null>(null);
+  const [reschedulingAppointment, setReschedulingAppointment] = useState<AppointmentItem | null>(null);
+  const [rescheduleFecha, setRescheduleFecha] = useState("");
   const [selectedStudentAnonId, setSelectedStudentAnonId] = useState<string | null>(null);
   const [studentHistory, setStudentHistory] = useState<StudentHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -130,6 +172,10 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [loadingAssignedPatients, setLoadingAssignedPatients] = useState(false);
   const [assignedError, setAssignedError] = useState<string | null>(null);
   const [assignedRiskFilters, setAssignedRiskFilters] = useState<string[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [appointmentsError, setAppointmentsError] = useState<string | null>(null);
+  const [appointmentsView, setAppointmentsView] = useState<"upcoming" | "past">("upcoming");
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [appointmentStudentAnonId, setAppointmentStudentAnonId] = useState<string | null>(null);
   const [appointmentFechaInicio, setAppointmentFechaInicio] = useState("");
@@ -401,6 +447,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
       });
       toast.success("Sesión programada correctamente.");
       closeAppointmentModal();
+      loadAppointments();
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo programar la sesión.";
       setAppointmentError(message);
@@ -424,6 +471,21 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
       setLoadingAssignedPatients(false);
     }
   }, [assignedRiskFilters]);
+
+  const loadAppointments = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      setAppointmentsError(null);
+      setLoadingAppointments(true);
+      setAppointments(await fetchAppointments(token));
+    } catch (err) {
+      console.error("Error cargando citas:", err);
+      setAppointmentsError(err instanceof Error ? err.message : "No se pudieron cargar las citas.");
+    } finally {
+      setLoadingAppointments(false);
+    }
+  }, []);
 
   const loadModelStatus = useCallback(async () => {
     const token = getAccessToken();
@@ -758,6 +820,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   useEffect(() => {
     if (activeTab === "users") { loadUsersData(); }
     if (activeTab === "assigned") { loadAssignedPatients(); }
+    if (activeTab === "appointments") { loadAppointments(); }
     if (activeTab === "model") { loadModelStatus(); }
     if (activeTab === "backups") { loadBackupData(); }
     if (activeTab === "dashboard") { loadDashboardKPIs(kpiStartDate || undefined, kpiEndDate || undefined); }
@@ -773,7 +836,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     } else {
       if (monitoringInterval.current) { clearInterval(monitoringInterval.current); monitoringInterval.current = null; }
     }
-  }, [activeTab, loadUsersData, loadAssignedPatients, loadModelStatus, loadBackupData,
+  }, [activeTab, loadUsersData, loadAssignedPatients, loadAppointments, loadModelStatus, loadBackupData,
       loadDashboardKPIs, loadMLData, loadResearcherDataset, loadLiveMonitoring,
       kpiStartDate, kpiEndDate]);
 
@@ -847,25 +910,80 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     }
   };
 
-  const handleUpdateDerivation = async (derivationId: string, status: string) => {
+  const openCaseAction = (caseItem: DerivationItem) => {
+    setCaseActionTarget(caseItem);
+    // Sugerir el siguiente paso natural del flujo.
+    const next: Record<string, string> = {
+      pendiente: "contactado",
+      contactado: "en_seguimiento",
+      atendido: "en_seguimiento",
+      en_seguimiento: "en_seguimiento",
+    };
+    setCaseActionEstado(next[caseItem.estado] ?? caseItem.estado);
+    setCaseActionNota("");
+    setCaseActionError(null);
+  };
+
+  const submitCaseAction = async () => {
+    const token = getAccessToken();
+    if (!token || !caseActionTarget) return;
+    if (!caseActionNota.trim()) {
+      setCaseActionError("Describe brevemente qué se hizo (p. ej., llamada, plan de seguridad, derivación).");
+      return;
+    }
+    try {
+      setUpdatingDerivationId(caseActionTarget.id);
+      await updateDerivation(token, caseActionTarget.id, {
+        estado: caseActionEstado || undefined,
+        accion_tomada: caseActionNota.trim(),
+      });
+      toast.success(
+        caseActionEstado && caseActionEstado !== caseActionTarget.estado
+          ? `Caso actualizado: ${CASE_STATE_LABELS[caseActionEstado] ?? caseActionEstado}.`
+          : "Acción registrada en el caso."
+      );
+      setCaseActionTarget(null);
+      await loadDashboardData();
+    } catch (err) {
+      setCaseActionError(err instanceof Error ? err.message : "No se pudo registrar la acción.");
+    } finally {
+      setUpdatingDerivationId(null);
+    }
+  };
+
+  const handleAppointmentStatus = async (appointment: AppointmentItem, estado: "completada" | "no_asistio" | "cancelada") => {
     const token = getAccessToken();
     if (!token) return;
     try {
-      setUpdatingDerivationId(derivationId);
-      await updateDerivation(token, derivationId, {
-        estado: status,
-        accion_tomada:
-          status === "contactado"
-            ? "Se contactó al estudiante y se coordinó seguimiento inmediato."
-            : "Caso atendido por el equipo de psicología universitaria.",
-      });
-      toast.success(`Caso marcado como ${status}.`);
-      await loadDashboardData();
+      setUpdatingAppointmentId(appointment.id_cita);
+      await updateAppointment(token, appointment.id_cita, { estado });
+      toast.success(`Cita marcada como ${APPOINTMENT_STATE_LABELS[estado].toLowerCase()}.`);
+      await loadAppointments();
     } catch (err) {
-      console.error("Error updating derivation", err);
-      toast.error("No se pudo actualizar el estado de la derivación.");
+      toast.error(err instanceof Error ? err.message : "No se pudo actualizar la cita.");
     } finally {
-      setUpdatingDerivationId(null);
+      setUpdatingAppointmentId(null);
+    }
+  };
+
+  const submitReschedule = async () => {
+    const token = getAccessToken();
+    if (!token || !reschedulingAppointment) return;
+    const date = new Date(rescheduleFecha);
+    if (!rescheduleFecha || Number.isNaN(date.getTime())) {
+      toast.error("Selecciona la nueva fecha y hora.");
+      return;
+    }
+    try {
+      setUpdatingAppointmentId(reschedulingAppointment.id_cita);
+      await updateAppointment(token, reschedulingAppointment.id_cita, { fecha_inicio: date.toISOString() });
+      toast.success("Cita reprogramada.");
+      setReschedulingAppointment(null);
+      await loadAppointments();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo reprogramar la cita.");
+    } finally {
+      setUpdatingAppointmentId(null);
     }
   };
 
@@ -904,6 +1022,10 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
 
   const handleSelectStudentHistory = async (anonId: string) => {
     setSelectedStudentAnonId(anonId);
+    // El panel de historial se muestra dentro de la pestaña Reportes; desde
+    // Pacientes Asignados o Citas hay que ir allí para que sea visible.
+    setActiveTab("reports");
+    window.scrollTo({ top: 0, behavior: "smooth" });
     await loadStudentHistory(anonId);
   };
 
@@ -1273,9 +1395,8 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   const pendingUrgentCount = derivations.filter(
     (item) => item.prioridad === "urgente" && item.estado === "pendiente"
   ).length;
-  const activeDerivationsCount = derivations.filter(
-    (item) => item.estado !== "cerrado"
-  ).length;
+  const openDerivations = derivations.filter((item) => OPEN_CASE_STATES.has(item.estado));
+  const pendingContactCount = derivations.filter((item) => item.estado === "pendiente").length;
 
   const sortedDerivations = [...derivations].sort((a, b) => {
     const priorityOrder: Record<string, number> = {
@@ -1286,7 +1407,10 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     const statusOrder: Record<string, number> = {
       pendiente: 0,
       contactado: 1,
+      en_seguimiento: 2,
       atendido: 2,
+      derivado_externo: 3,
+      cerrado: 4,
     };
 
     const priorityComparison = (priorityOrder[a.prioridad] ?? 99) - (priorityOrder[b.prioridad] ?? 99);
@@ -1298,7 +1422,8 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
   });
 
-  const topAlerts = sortedDerivations.slice(0, 3);
+  // En el resumen solo se muestran casos abiertos (lo que requiere acción).
+  const topAlerts = sortedDerivations.filter((item) => OPEN_CASE_STATES.has(item.estado)).slice(0, 4);
 
   const getPriorityLabel = (priority: string) => {
     switch (priority) {
@@ -1317,7 +1442,12 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
         return "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200";
       case "contactado":
         return "bg-blue-100 text-blue-900 dark:bg-blue-500/20 dark:text-blue-200";
+      case "en_seguimiento":
       case "atendido":
+        return "bg-indigo-100 text-indigo-900 dark:bg-indigo-500/20 dark:text-indigo-200";
+      case "derivado_externo":
+        return "bg-violet-100 text-violet-900 dark:bg-violet-500/20 dark:text-violet-200";
+      case "cerrado":
         return "bg-emerald-100 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200";
       default:
         return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
@@ -1355,25 +1485,52 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 Alerta urgente
               </p>
               <p className="mt-2 text-base font-semibold text-slate-900 dark:text-white">
-                Hay {pendingUrgentCount} derivación(es) urgente(s) pendiente(s). Revisa los casos críticos ahora.
+                {pendingUrgentCount === 1
+                  ? "Hay 1 caso urgente (ítem 9 positivo) sin contactar."
+                  : `Hay ${pendingUrgentCount} casos urgentes (ítem 9 positivo) sin contactar.`}{" "}
+                Contacta al estudiante y registra la acción.
               </p>
             </div>
             <button
               type="button"
-              onClick={() => setActiveTab("reports")}
+              onClick={() => { setCasesFilter("open"); setActiveTab("cases"); }}
               className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 transition-colors"
             >
-              Ver alertas
+              Ir a casos urgentes
             </button>
           </div>
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6">
+        <div
+          data-testid="overview-students"
+          className="md:col-span-1 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between shadow-sm"
+        >
+          <div className="flex justify-between items-start">
+            <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg">
+              <span className="material-symbols-outlined">school</span>
+            </div>
+            <span className="text-xs font-semibold text-slate-400">
+              {currentUser?.rol === "psicologo" ? "Asignados" : "Registrados"}
+            </span>
+          </div>
+          <div className="mt-4">
+            <p className="font-label-caps text-label-caps text-slate-500 dark:text-slate-400 uppercase">
+              {currentUser?.rol === "psicologo" ? "Mis Estudiantes" : "Estudiantes"}
+            </p>
+            <h3 className="text-3xl font-bold mt-1 dark:text-white">{statistics?.totalStudents ?? 0}</h3>
+            {currentUser?.rol !== "psicologo" && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                {statistics?.evaluatedStudents ?? 0} con al menos una evaluación
+              </p>
+            )}
+          </div>
+        </div>
         <div className="md:col-span-1 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between shadow-sm">
           <div className="flex justify-between items-start">
             <div className="p-2 bg-blue-50 dark:bg-blue-500/10 text-primary dark:text-blue-400 rounded-lg">
-              <span className="material-symbols-outlined">group</span>
+              <span className="material-symbols-outlined">assignment</span>
             </div>
             <span className="text-xs font-semibold text-secondary flex items-center gap-1">En vivo</span>
           </div>
@@ -1390,10 +1547,11 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
             <span className="text-xs font-semibold text-error flex items-center gap-1">Urgente</span>
           </div>
           <div className="mt-4">
-            <p className="font-label-caps text-label-caps text-slate-500 dark:text-slate-400 uppercase">Alertas de Riesgo</p>
-            <h3 className="text-3xl font-bold mt-1 dark:text-white">
-              {statistics ? statistics.riskDistribution.severe + statistics.riskDistribution.moderatelySevere : 0}
+            <p className="font-label-caps text-label-caps text-slate-500 dark:text-slate-400 uppercase">Ítem 9 positivo activo</p>
+            <h3 className="text-3xl font-bold mt-1 dark:text-white" data-testid="overview-suicide-alerts">
+              {statistics?.activeSuicideAlerts ?? 0}
             </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">casos abiertos con ideación de muerte/autolesión</p>
           </div>
         </div>
         <div className="md:col-span-1 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between shadow-sm">
@@ -1413,13 +1571,12 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
             <div className="p-2 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg">
               <span className="material-symbols-outlined">history</span>
             </div>
-            <span className="text-xs font-semibold text-slate-400">Estimado</span>
+            <span className="text-xs font-semibold text-slate-400">Real</span>
           </div>
           <div className="mt-4">
-            <p className="font-label-caps text-label-caps text-slate-500 dark:text-slate-400 uppercase">Seguimientos Req.</p>
-            <h3 className="text-3xl font-bold mt-1 dark:text-white">
-              {statistics ? Math.round((statistics.riskDistribution.moderate + statistics.riskDistribution.moderatelySevere + statistics.riskDistribution.severe) * 0.8) : 0}
-            </h3>
+            <p className="font-label-caps text-label-caps text-slate-500 dark:text-slate-400 uppercase">Casos abiertos</p>
+            <h3 className="text-3xl font-bold mt-1 dark:text-white" data-testid="overview-open-cases">{statistics?.openCases ?? 0}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{statistics?.pendingContact ?? 0} pendientes de primer contacto</p>
           </div>
         </div>
       </div>
@@ -1466,17 +1623,18 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 flex-1 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="font-bold text-slate-900 dark:text-white">Alertas Críticas Recientes</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Priorización de casos de riesgo alto y suicidio para atención inmediata.</p>
+                <h3 className="font-bold text-slate-900 dark:text-white">Casos que requieren acción</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Casos abiertos, primero los urgentes y sin contactar.</p>
               </div>
               <button
                 className="text-xs font-bold text-primary hover:underline"
                 onClick={(event) => {
                   event.preventDefault();
-                  setActiveTab("reports");
+                  setCasesFilter("open");
+                  setActiveTab("cases");
                 }}
               >
-                Ver todas
+                Ver todos
               </button>
             </div>
             <div className="space-y-4">
@@ -1496,66 +1654,68 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                             {getPriorityLabel(alert.prioridad)}
                           </p>
                           <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                            {alert.nivel_riesgo.replace(/_/g, " ")}{alert.alerta_suicidio ? " - Riesgo suicida" : ""}
+                            {alert.id_anonimo ?? "Estudiante"} · PHQ-9 {alert.puntaje ?? "—"}/27
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {alert.nivel_riesgo.replace(/_/g, " ")}{alert.alerta_suicidio ? " · ítem 9 positivo" : ""}
                           </p>
                         </div>
                       </div>
                       <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusBadge(alert.estado)}`}>
-                        {alert.estado}
+                        {CASE_STATE_LABELS[alert.estado] ?? alert.estado}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{alert.accion}</p>
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <span className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                        {new Date(alert.fecha).toLocaleString("es-PE", { dateStyle: "medium", timeStyle: "short" })}
-                      </span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">{alert.institucion ?? "Institución derivada estándar"}</span>
-                    </div>
-                    {alert.estado === "pendiente" ? (
+                    <p className="mt-3 text-xs text-slate-600 dark:text-slate-300 line-clamp-2" title={alert.accion}>
+                      Última acción: {(alert.accion || "").split("\n")[0]}
+                    </p>
+                    <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                      Derivado el {new Date(alert.fecha).toLocaleString("es-PE", { timeZone: "America/Lima", dateStyle: "medium", timeStyle: "short" })}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {alert.id_anonimo && (
+                        <button
+                          type="button"
+                          onClick={() => handleSelectStudentHistory(alert.id_anonimo!)}
+                          className="inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        >
+                          Abrir caso
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={updatingDerivationId === alert.id}
-                        onClick={() => handleUpdateDerivation(alert.id, "contactado")}
-                        className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={() => openCaseAction(alert)}
+                        className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {updatingDerivationId === alert.id ? "Actualizando…" : "Marcar contactado"}
+                        Registrar acción
                       </button>
-                    ) : alert.estado === "contactado" ? (
-                      <button
-                        type="button"
-                        disabled={updatingDerivationId === alert.id}
-                        onClick={() => handleUpdateDerivation(alert.id, "atendido")}
-                        className="mt-4 inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {updatingDerivationId === alert.id ? "Actualizando…" : "Marcar atendido"}
-                      </button>
-                    ) : null}
+                    </div>
                   </div>
                 ))
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-5 text-sm text-slate-600 dark:text-slate-400">
-                  No hay alertas críticas activas en este momento.
+                  No hay casos abiertos que requieran acción.
                 </div>
               )}
             </div>
           </div>
 
-          <div className="bg-primary dark:bg-blue-600 p-6 rounded-2xl text-white shadow-lg shadow-primary/20">
-            <h4 className="font-bold mb-2">Asignación de Recursos</h4>
-            <p className="text-xs text-blue-100 leading-relaxed mb-4">Tienes {activeDerivationsCount} casos abiertos para seguimiento. Ajusta las citas y el personal según prioridad.</p>
-            <button className="w-full py-2 bg-white text-primary dark:text-blue-600 font-bold text-xs rounded-lg hover:bg-blue-50 transition-colors">
-              Asignar Consejeros
-            </button>
-          </div>
         </div>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center">
-          <h3 className="font-bold dark:text-white">Nota de Privacidad</h3>
+          <h3 className="font-bold dark:text-white">Confidencialidad</h3>
         </div>
-        <div className="p-6 text-sm text-slate-600 dark:text-slate-400">
-          <p>Todos los datos recopilados son estrictamente anónimos. Los registros individuales de estudiantes no pueden mostrarse para proteger la privacidad del paciente. Los datos mostrados en los gráficos anteriores representan métricas agregadas solo para el monitoreo institucional.</p>
+        <div className="p-6 text-sm text-slate-600 dark:text-slate-400 space-y-2">
+          {currentUser?.rol === "psicologo" ? (
+            <>
+              <p>Ves la información clínica individual solo de los estudiantes asignados a ti, identificados con un código seudónimo (p. ej. #A1B2C3).</p>
+              <p>Cada consulta o exportación de una historia queda registrada en la auditoría del sistema (Ley N.° 29733). Usa la información únicamente para fines de atención y seguimiento.</p>
+            </>
+          ) : (
+            <p>Los estudiantes se identifican con un código seudónimo. Las consultas y exportaciones de historias clínicas quedan registradas en la auditoría del sistema (Ley N.° 29733).</p>
+          )}
         </div>
       </div>
     </>
@@ -1769,17 +1929,64 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 </div>
               ) : (
                 <div className="grid gap-4">
-                  {studentHistory.map((item) => (
+                  {studentHistory.map((item, histIdx) => {
+                    const previous = studentHistory[histIdx + 1];
+                    const delta = previous ? item.puntaje - previous.puntaje : null;
+                    return (
                     <div key={item.fecha + item.nivel_riesgo} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
                       <div className="flex items-center justify-between gap-4">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.nivel_riesgo}{item.alerta_suicidio ? " - Riesgo suicida" : ""}</p>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                          {item.nivel_riesgo}{item.alerta_suicidio ? " · ítem 9 positivo" : ""}
+                          {delta !== null && delta !== 0 && (
+                            <span
+                              className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                Math.abs(delta) >= 5
+                                  ? delta < 0
+                                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300"
+                                    : "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300"
+                                  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                              }`}
+                              title="Cambio respecto de la evaluación anterior. ≥ 5 puntos se considera clínicamente significativo."
+                            >
+                              {delta > 0 ? `+${delta}` : delta} pts{Math.abs(delta) >= 5 ? (delta < 0 ? " · mejora significativa" : " · empeoramiento significativo") : ""}
+                            </span>
+                          )}
+                        </p>
                         <span className="text-xs text-slate-500 dark:text-slate-400">
                           {new Date(item.fecha).toLocaleDateString("es-PE", { dateStyle: "medium" })}
                         </span>
                       </div>
                       <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                        <p>Puntaje: <span className="font-semibold text-slate-900 dark:text-white">{item.puntaje} / 27</span></p>
-                        <p>Estado: <span className="font-semibold">{item.estado_evaluacion ?? "No registrado"}</span></p>
+                        <p>Puntaje PHQ-9: <span className="font-semibold text-slate-900 dark:text-white">{item.puntaje} / 27</span></p>
+                        {item.respuestas_phq9 && item.respuestas_phq9.length === 9 && (
+                          <div className="mt-2 grid grid-cols-3 sm:grid-cols-9 gap-1" data-testid="phq9-items">
+                            {item.respuestas_phq9.map((v, idx) => {
+                              const isItem9 = idx === 8;
+                              return (
+                                <div
+                                  key={idx}
+                                  title={`Ítem ${idx + 1}: ${PHQ9_SHORT_ITEMS[idx]} (${v}/3)`}
+                                  className={`rounded-md px-1.5 py-1 text-center border ${
+                                    isItem9 && v > 0
+                                      ? "border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-950/40 dark:text-red-200 font-bold"
+                                      : v >= 2
+                                        ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
+                                        : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+                                  }`}
+                                >
+                                  <span className="block text-[9px] uppercase tracking-wide opacity-70">Í{idx + 1}</span>
+                                  <span className="text-xs font-semibold">{v}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {item.respuestas_phq9 && item.respuestas_phq9.length === 9 && item.respuestas_phq9[8] > 0 && (
+                          <p className="mt-1 text-xs font-semibold text-red-700 dark:text-red-300">
+                            Ítem 9 = {item.respuestas_phq9[8]}/3: valorar riesgo suicida y plan de seguridad.
+                          </p>
+                        )}
+                        <p className="mt-2">Estado: <span className="font-semibold">{item.estado_evaluacion ?? "No registrado"}</span></p>
                         {item.comentarios && (
                           <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{item.comentarios}</p>
                         )}
@@ -1793,13 +2000,17 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                                     <div className="text-sm leading-relaxed">{o.texto}</div>
                                     <div className="flex items-center justify-between gap-3">
                                       <span className="text-[11px] text-slate-400">{new Date(o.created_at).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" })}</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleEditObservation(o)}
-                                        className="text-xs font-semibold text-primary hover:underline"
-                                      >
-                                        Editar
-                                      </button>
+                                      {o.editable !== false ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleEditObservation(o)}
+                                          className="text-xs font-semibold text-primary hover:underline"
+                                        >
+                                          Editar
+                                        </button>
+                                      ) : (
+                                        <span className="text-[11px] text-slate-400">Registrada por otro profesional</span>
+                                      )}
                                     </div>
                                   </div>
                                 </li>
@@ -1809,22 +2020,32 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                         )}
                         {item.interpretabilidad && (
                           <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Factores que influyeron en la predicción (HU0017)</p>
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Estimación complementaria (sueño y apoyo social)</p>
                             <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
-                              {item.interpretabilidad.ml_prediction && (
-                                <li>Predicción del modelo: <span className="font-semibold">{item.interpretabilidad.ml_prediction}</span>{item.interpretabilidad.ml_probability != null ? ` (${(item.interpretabilidad.ml_probability * 100).toFixed(0)}%)` : ""}</li>
+                              {typeof item.interpretabilidad.ml_probability === "number" && (
+                                <li>
+                                  {item.interpretabilidad.ml_fallback
+                                    ? "Modelo no disponible en ese momento; se usó el puntaje PHQ-9 como referencia"
+                                    : "Probabilidad estimada de PHQ-9 ≥ 10 a partir de sueño y apoyo social"}
+                                  : <span className="font-semibold">{Number(item.interpretabilidad.ml_probability).toFixed(0)}%</span>
+                                </li>
                               )}
-                              {item.interpretabilidad.horas_sueno != null && <li>Horas de sueño reportadas: {item.interpretabilidad.horas_sueno}</li>}
+                              {item.interpretabilidad.horas_sueno != null && <li>Horas de sueño: {item.interpretabilidad.horas_sueno} h</li>}
                               {item.interpretabilidad.calidad_sueno && <li>Calidad de sueño: {item.interpretabilidad.calidad_sueno}</li>}
-                              {item.interpretabilidad.mspss_total != null && <li>Soporte social percibido (MSPSS): {item.interpretabilidad.mspss_total}</li>}
-                              {item.interpretabilidad.historia_salud_mental && <li>Historia de salud mental: {item.interpretabilidad.historia_salud_mental}</li>}
+                              {typeof item.interpretabilidad.mspss_mean === "number"
+                                ? <li>Apoyo social percibido (MSPSS): {Number(item.interpretabilidad.mspss_mean).toFixed(1)} / 7</li>
+                                : item.interpretabilidad.mspss_total != null && <li>Apoyo social percibido (MSPSS, total): {item.interpretabilidad.mspss_total}</li>}
+                              {item.interpretabilidad.historia_salud_mental && <li>Antecedentes de salud mental (autorreporte): {item.interpretabilidad.historia_salud_mental}</li>}
                             </ul>
-                            <p className="mt-2 text-[11px] text-slate-400">Nota: explicación basada en las variables de entrada del modelo, no en una atribución de importancia técnica (SHAP) del modelo entrenado.</p>
+                            <p className="mt-2 text-[11px] text-slate-400">
+                              Tamizaje, no diagnóstico. La estimación no usa las respuestas del PHQ-9: si discrepa del puntaje, prima el PHQ-9 y el juicio clínico.
+                            </p>
                           </div>
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1946,14 +2167,16 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                         </p>
 
                         <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800/60 text-[10px] text-slate-400">
-                          <span>Psicólogo asignado</span>
-                          <button
-                            type="button"
-                            onClick={() => handleEditIntervention(intv)}
-                            className="text-primary hover:underline font-bold text-[11px]"
-                          >
-                            Editar
-                          </button>
+                          <span>{intv.es_propia ? "Registrada por ti" : "Registrada por otro profesional"}</span>
+                          {(intv.es_propia || getAuthUser()?.rol === "admin") && (
+                            <button
+                              type="button"
+                              onClick={() => handleEditIntervention(intv)}
+                              className="text-primary hover:underline font-bold text-[11px]"
+                            >
+                              Editar
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1974,8 +2197,8 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 <th className="px-6 py-4 font-semibold">Fecha</th>
                 <th className="px-6 py-4 font-semibold">Nivel de Riesgo</th>
                 <th className="px-6 py-4 font-semibold">Puntaje</th>
-                <th className="px-6 py-4 font-semibold">Acción</th>
-                <th className="px-6 py-4 font-semibold text-right">Ver historial</th>
+                <th className="px-6 py-4 font-semibold">Universidad</th>
+                <th className="px-6 py-4 font-semibold text-right">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -2040,7 +2263,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
       <div className="space-y-2 mb-8">
         <h2 className="font-h1 text-h1 text-on-background dark:text-white">Pacientes Asignados</h2>
         <p className="font-body-lg text-body-lg text-tertiary dark:text-slate-400 max-w-2xl">
-          Visualiza los estudiantes que te han sido asignados para seguimiento clínico y accede rápidamente al historial de cada caso.
+          Tu cartera actual, ordenada por prioridad clínica: primero ítem 9 positivo con caso abierto, luego casos sin contactar y después por severidad.
         </p>
       </div>
 
@@ -2099,6 +2322,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                   <th className="px-6 py-4 font-semibold">Última evaluación</th>
                   <th className="px-6 py-4 font-semibold">Nivel de riesgo</th>
                   <th className="px-6 py-4 font-semibold">Puntaje</th>
+                  <th className="px-6 py-4 font-semibold">Estado del caso</th>
                   <th className="px-6 py-4 font-semibold">Acción</th>
                 </tr>
               </thead>
@@ -2114,10 +2338,19 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${patient.alerta_suicidio ? "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"}`}>
                         {patient.nivel_riesgo}
-                        {patient.alerta_suicidio ? " - Riesgo suicida" : ""}
+                        {patient.alerta_suicidio ? " · ítem 9 positivo" : ""}
                       </span>
                     </td>
                     <td className="px-6 py-4 dark:text-slate-300">{patient.puntaje} / 27</td>
+                    <td className="px-6 py-4">
+                      {patient.estado_caso ? (
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${getStatusBadge(patient.estado_caso)}`}>
+                          {CASE_STATE_LABELS[patient.estado_caso] ?? patient.estado_caso}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">Sin derivación</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-right space-x-3">
                       <button
                         type="button"
@@ -2223,6 +2456,430 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
       )}
     </div>
   );
+
+  const renderCases = () => {
+    const rows = sortedDerivations.filter((d) =>
+      casesFilter === "all" ? true : casesFilter === "open" ? OPEN_CASE_STATES.has(d.estado) : !OPEN_CASE_STATES.has(d.estado)
+    );
+    const counts = {
+      open: openDerivations.length,
+      closed: derivations.length - openDerivations.length,
+      all: derivations.length,
+    };
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2 mb-6">
+          <h2 className="font-h1 text-h1 text-on-background dark:text-white">Casos y Alertas</h2>
+          <p className="font-body-lg text-body-lg text-tertiary dark:text-slate-400 max-w-3xl">
+            Casos derivados por el tamizaje (PHQ-9 moderadamente severo/severo o ítem 9 positivo).
+            {getAuthUser()?.rol === "psicologo" ? " Solo ves los asignados a ti." : " Vista de todos los psicólogos."}
+            {" "}Registra cada contacto o acción: queda en el historial del caso.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-red-200 bg-red-50/70 dark:border-red-900/60 dark:bg-red-950/30 p-4 text-sm text-red-900 dark:text-red-200">
+          <p className="font-semibold">Ítem 9 positivo: contacto el mismo día.</p>
+          <p className="mt-1 text-red-800/90 dark:text-red-200/80">
+            Valora el riesgo (ideación, plan, intención, medios, antecedentes), acuerda un plan de seguridad y, si el riesgo es inminente,
+            activa emergencia (Línea 113 opción 5 / SAMU 106). Si no contactas en 2 h, el caso se escala automáticamente al resto del equipo.
+          </p>
+        </div>
+
+        <div className="inline-flex rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1">
+          {([
+            ["open", `Abiertos (${counts.open})`],
+            ["closed", `Cerrados / derivados (${counts.closed})`],
+            ["all", `Todos (${counts.all})`],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setCasesFilter(value)}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                casesFilter === value ? "bg-[#4A90E2] text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+          {rows.length === 0 ? (
+            <div className="p-12 text-center text-slate-500 dark:text-slate-400">
+              {casesFilter === "open" ? "No hay casos abiertos. 👌" : "No hay casos en esta vista."}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left" data-testid="cases-table">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">
+                  <tr>
+                    <th className="px-5 py-4 font-semibold">Prioridad</th>
+                    <th className="px-5 py-4 font-semibold">Estudiante</th>
+                    <th className="px-5 py-4 font-semibold">PHQ-9</th>
+                    <th className="px-5 py-4 font-semibold">Derivado</th>
+                    <th className="px-5 py-4 font-semibold">Estado</th>
+                    <th className="px-5 py-4 font-semibold">Última acción</th>
+                    <th className="px-5 py-4 font-semibold text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {rows.map((d) => {
+                    const hoursOpen = (Date.now() - new Date(d.fecha).getTime()) / 3_600_000;
+                    const overdue = d.estado === "pendiente" && ((d.prioridad === "urgente" && hoursOpen >= 2) || hoursOpen >= 24);
+                    return (
+                      <tr key={d.id} className={`align-top ${overdue ? "bg-red-50/60 dark:bg-red-950/20" : "hover:bg-slate-50 dark:hover:bg-slate-800/20"}`}>
+                        <td className="px-5 py-4">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${d.prioridad === "urgente" ? "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300" : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"}`}>
+                            {getPriorityLabel(d.prioridad)}
+                          </span>
+                          {d.alerta_suicidio && <p className="mt-1 text-[11px] font-semibold text-red-700 dark:text-red-300">Ítem 9 positivo</p>}
+                        </td>
+                        <td className="px-5 py-4 font-medium dark:text-slate-200">{d.id_anonimo ?? "—"}</td>
+                        <td className="px-5 py-4 dark:text-slate-300">
+                          {d.puntaje ?? "—"}/27
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">{d.nivel_riesgo.replace(/_/g, " ")}</p>
+                        </td>
+                        <td className="px-5 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                          {new Date(d.fecha).toLocaleString("es-PE", { timeZone: "America/Lima", dateStyle: "short", timeStyle: "short" })}
+                          {overdue && <p className="text-[11px] font-bold text-red-700 dark:text-red-300">Sin contactar hace {Math.floor(hoursOpen)} h</p>}
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${getStatusBadge(d.estado)}`}>
+                            {CASE_STATE_LABELS[d.estado] ?? d.estado}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-xs text-slate-600 dark:text-slate-300 max-w-sm">
+                          <p className="line-clamp-2" title={d.accion}>{(d.accion || "—").split("\n")[0]}</p>
+                        </td>
+                        <td className="px-5 py-4 text-right whitespace-nowrap space-x-3">
+                          {d.id_anonimo && (
+                            <button type="button" onClick={() => handleSelectStudentHistory(d.id_anonimo!)} className="text-primary text-xs font-semibold hover:underline">
+                              Abrir caso
+                            </button>
+                          )}
+                          <button type="button" onClick={() => openCaseAction(d)} className="text-primary text-xs font-semibold hover:underline">
+                            Registrar acción
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderCaseActionModal = () => {
+    if (!caseActionTarget) return null;
+    const history = (caseActionTarget.accion || "").split("\n").filter(Boolean);
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8" role="dialog" aria-modal="true">
+        <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-7">
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Registrar acción</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                {caseActionTarget.id_anonimo ?? "Estudiante"} · PHQ-9 {caseActionTarget.puntaje ?? "—"}/27 ·{" "}
+                {CASE_STATE_LABELS[caseActionTarget.estado] ?? caseActionTarget.estado}
+              </p>
+            </div>
+            <button type="button" onClick={() => setCaseActionTarget(null)} className="text-slate-500 hover:text-slate-700 dark:text-slate-400">
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          {caseActionTarget.alerta_suicidio && (
+            <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/40 p-4 text-xs text-red-900 dark:text-red-200">
+              <p className="font-semibold text-sm">Ítem 9 positivo · checklist sugerido</p>
+              <ul className="mt-2 list-disc pl-5 space-y-1">
+                <li>Contacto directo con el estudiante hoy.</li>
+                <li>Valorar ideación, plan, intención, acceso a medios y antecedentes (p. ej., C-SSRS).</li>
+                <li>Acordar plan de seguridad y red de apoyo; dejar Línea 113 (opción 5).</li>
+                <li>Riesgo inminente: activar emergencia (SAMU 106) y no dejar solo al estudiante.</li>
+              </ul>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Nuevo estado</label>
+              <select
+                value={caseActionEstado}
+                onChange={(e) => setCaseActionEstado(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              >
+                <option value={caseActionTarget.estado}>Mantener: {CASE_STATE_LABELS[caseActionTarget.estado] ?? caseActionTarget.estado}</option>
+                {CASE_ACTION_OPTIONS.filter((s) => s !== caseActionTarget.estado).map((s) => (
+                  <option key={s} value={s}>{CASE_STATE_LABELS[s]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                ¿Qué se hizo? <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={caseActionNota}
+                onChange={(e) => setCaseActionNota(e.target.value)}
+                rows={4}
+                data-testid="case-action-note"
+                placeholder="Ej.: Llamada telefónica 18:30. Niega plan actual; plan de seguridad acordado con su madre. Cita presencial mañana 10:00."
+                className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              />
+            </div>
+            {caseActionError && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{caseActionError}</div>
+            )}
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setCaseActionTarget(null)} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={submitCaseAction}
+                disabled={updatingDerivationId === caseActionTarget.id}
+                className="rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-blue-600 disabled:opacity-50"
+              >
+                {updatingDerivationId === caseActionTarget.id ? "Guardando..." : "Guardar acción"}
+              </button>
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Historial del caso</p>
+              <ul className="mt-2 space-y-2 text-xs text-slate-600 dark:text-slate-300">
+                {history.map((line, i) => (
+                  <li key={i} className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 p-2">{line}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderRescheduleModal = () => {
+    if (!reschedulingAppointment) return null;
+    const anon = reschedulingAppointment.id_anonimo ?? "estudiante";
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8" role="dialog" aria-modal="true">
+        <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-7 space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Reprogramar cita</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              {anon} · actual:{" "}
+              {new Date(reschedulingAppointment.fecha_inicio).toLocaleString("es-PE", { timeZone: "America/Lima", dateStyle: "medium", timeStyle: "short" })}
+            </p>
+          </div>
+          <input
+            type="datetime-local"
+            value={rescheduleFecha}
+            onChange={(e) => setRescheduleFecha(e.target.value)}
+            className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+          />
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setReschedulingAppointment(null)} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={submitReschedule}
+              disabled={updatingAppointmentId === reschedulingAppointment.id_cita}
+              className="rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-blue-600 disabled:opacity-50"
+            >
+              Guardar nueva fecha
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderAppointments = () => {
+    const LIMA_TZ = "America/Lima";
+    const now = Date.now();
+    const endOf = (a: AppointmentItem) => new Date(a.fecha_inicio).getTime() + (a.duracion_minutos || 0) * 60_000;
+    const dayKey = (d: Date) => d.toLocaleDateString("es-PE", { timeZone: LIMA_TZ });
+    const todayKey = dayKey(new Date());
+
+    // Próximas: programadas que aún no terminan. El resto (pasadas, completadas o canceladas) va al historial.
+    const upcoming = appointments
+      .filter((a) => a.estado === "programada" && endOf(a) >= now)
+      .sort((a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime());
+    const past = appointments
+      .filter((a) => !(a.estado === "programada" && endOf(a) >= now))
+      .sort((a, b) => new Date(b.fecha_inicio).getTime() - new Date(a.fecha_inicio).getTime());
+
+    const studentsWithUpcoming = new Set(upcoming.map((a) => a.id_estudiante)).size;
+    const todayCount = upcoming.filter((a) => dayKey(new Date(a.fecha_inicio)) === todayKey).length;
+    const studentsTotal = new Set(appointments.map((a) => a.id_estudiante)).size;
+    const rows = appointmentsView === "upcoming" ? upcoming : past;
+
+    const estadoStyle: Record<string, string> = {
+      programada: "bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300",
+      completada: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300",
+      cancelada: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+      no_asistio: "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300",
+    };
+
+    const kpis = [
+      { label: "Estudiantes con cita próxima", value: studentsWithUpcoming, icon: "groups", testId: "kpi-students-upcoming" },
+      { label: "Citas próximas", value: upcoming.length, icon: "event_upcoming", testId: "kpi-upcoming" },
+      { label: "Citas de hoy", value: todayCount, icon: "today", testId: "kpi-today" },
+      { label: "Estudiantes agendados (total)", value: studentsTotal, icon: "person_check", testId: "kpi-students-total" },
+    ];
+
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2 mb-8">
+          <h2 className="font-h1 text-h1 text-on-background dark:text-white">Citas Programadas</h2>
+          <p className="font-body-lg text-body-lg text-tertiary dark:text-slate-400 max-w-2xl">
+            {getAuthUser()?.rol === "psicologo"
+              ? "Tus sesiones agendadas con estudiantes. Para agendar una nueva, ve a Pacientes Asignados → Agendar sesión."
+              : "Sesiones agendadas por todos los psicólogos. Para agendar una nueva, ve a Pacientes Asignados → Agendar sesión."}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {kpis.map((k) => (
+            <div key={k.label} data-testid={k.testId} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-5">
+              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                <span className="material-symbols-outlined text-[#4A90E2] text-xl">{k.icon}</span>
+                <p className="text-xs font-semibold">{k.label}</p>
+              </div>
+              <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{loadingAppointments ? "…" : k.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="inline-flex rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1">
+            {([
+              ["upcoming", `Próximas (${upcoming.length})`],
+              ["past", `Historial (${past.length})`],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setAppointmentsView(value)}
+                className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                  appointmentsView === value
+                    ? "bg-[#4A90E2] text-white"
+                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={loadAppointments}
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+          >
+            <span className="material-symbols-outlined text-base">refresh</span>
+            Actualizar
+          </button>
+        </div>
+
+        {appointmentsError && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{appointmentsError}</div>
+        )}
+
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+          {loadingAppointments ? (
+            <div className="p-12 text-center text-slate-500 dark:text-slate-400">Cargando citas...</div>
+          ) : rows.length === 0 ? (
+            <div className="p-12 text-center space-y-3">
+              <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600">event_busy</span>
+              <p className="text-slate-500 dark:text-slate-400">
+                {appointmentsView === "upcoming" ? "No tienes citas próximas." : "Aún no hay citas en el historial."}
+              </p>
+              {appointmentsView === "upcoming" && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("assigned")}
+                  className="text-primary text-sm font-semibold hover:underline"
+                >
+                  Ir a Pacientes Asignados para agendar
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left" data-testid="appointments-table">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">
+                  <tr>
+                    <th className="px-6 py-4 font-semibold">Fecha y hora</th>
+                    <th className="px-6 py-4 font-semibold">Duración</th>
+                    <th className="px-6 py-4 font-semibold">Estudiante</th>
+                    <th className="px-6 py-4 font-semibold">Carrera</th>
+                    <th className="px-6 py-4 font-semibold">Descripción</th>
+                    <th className="px-6 py-4 font-semibold">Estado</th>
+                    <th className="px-6 py-4 font-semibold text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {rows.map((a) => {
+                    const start = new Date(a.fecha_inicio);
+                    const isToday = dayKey(start) === todayKey;
+                    const anon = a.id_anonimo ?? `#${a.id_estudiante.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
+                    return (
+                      <tr key={a.id_cita} className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                        <td className="px-6 py-4 dark:text-slate-200">
+                          {start.toLocaleString("es-PE", { timeZone: LIMA_TZ, dateStyle: "medium", timeStyle: "short" })}
+                          {isToday && appointmentsView === "upcoming" && (
+                            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">HOY</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{a.duracion_minutos} min</td>
+                        <td className="px-6 py-4 font-medium dark:text-slate-200">{anon}</td>
+                        <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{a.carrera ?? "—"}</td>
+                        <td className="px-6 py-4 text-slate-500 dark:text-slate-400 max-w-xs truncate" title={a.descripcion ?? ""}>{a.descripcion || "—"}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${estadoStyle[a.estado] ?? estadoStyle.cancelada}`}>
+                            {a.estado === "programada" && endOf(a) < now ? "Sin cerrar" : (APPOINTMENT_STATE_LABELS[a.estado] ?? a.estado)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right whitespace-nowrap space-x-3">
+                          {a.estado === "programada" && (
+                            <>
+                              {endOf(a) < now || isToday ? (
+                                <>
+                                  <button type="button" disabled={updatingAppointmentId === a.id_cita} onClick={() => handleAppointmentStatus(a, "completada")} className="text-emerald-700 dark:text-emerald-400 text-xs font-semibold hover:underline disabled:opacity-50">Completada</button>
+                                  <button type="button" disabled={updatingAppointmentId === a.id_cita} onClick={() => handleAppointmentStatus(a, "no_asistio")} className="text-amber-700 dark:text-amber-400 text-xs font-semibold hover:underline disabled:opacity-50">No asistió</button>
+                                </>
+                              ) : null}
+                              <button type="button" disabled={updatingAppointmentId === a.id_cita} onClick={() => { setReschedulingAppointment(a); setRescheduleFecha(""); }} className="text-primary text-xs font-semibold hover:underline disabled:opacity-50">Reprogramar</button>
+                              <button type="button" disabled={updatingAppointmentId === a.id_cita} onClick={() => handleAppointmentStatus(a, "cancelada")} className="text-slate-500 text-xs font-semibold hover:underline disabled:opacity-50">Cancelar</button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleSelectStudentHistory(anon)}
+                            className="text-primary text-xs font-semibold hover:underline"
+                          >
+                            Ver historial
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const renderModel = () => (
     <div className="space-y-6">
@@ -3294,7 +3951,8 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
         {/* Interventions effectiveness */}
         {effectivenessByType.length > 0 && (
           <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
-            <h3 className="font-bold text-slate-800 dark:text-white mb-4">Efectividad de Intervenciones</h3>
+            <h3 className="font-bold text-slate-800 dark:text-white mb-1">Cambio en PHQ-9 alrededor de las intervenciones</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Diferencia entre la evaluación previa y la siguiente a cada intervención. Es descriptivo: no demuestra que el cambio se deba a la intervención.</p>
             <p className="text-xs text-slate-400 mb-3">Reducción promedio del puntaje PHQ-9 entre la evaluación previa y posterior a cada tipo de intervención (valores positivos = mejora).</p>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart layout="vertical" data={effectivenessByType} margin={{ left: 30 }}>
@@ -3933,6 +4591,31 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                   <span>Pacientes Asignados</span>
                 </button>
 
+                <button
+                  onClick={() => { setActiveTab("cases"); setIsMobileMenuOpen(false); }}
+                  data-testid="nav-cases"
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "cases" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "cases" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">emergency</span>
+                  <span>Casos y Alertas</span>
+                  {pendingContactCount > 0 && (
+                    <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-red-600 text-white text-[11px] font-bold flex items-center justify-center">
+                      {pendingContactCount}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab("appointments"); setIsMobileMenuOpen(false); }}
+                  data-testid="nav-appointments"
+                  className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "appointments" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
+                >
+                  {activeTab === "appointments" && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-md bg-[#4A90E2]" />}
+                  <span className="material-symbols-outlined">event_available</span>
+                  <span>Citas Programadas</span>
+                </button>
+
                 <button 
                   onClick={() => { setActiveTab("reports"); setIsMobileMenuOpen(false); }}
                   className={`relative w-full flex items-center gap-3 px-4 py-2 rounded-lg font-semibold transition-all duration-100 ${activeTab === "reports" ? "bg-blue-50 dark:bg-blue-500/10 text-[#4A90E2] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"}`}
@@ -4138,9 +4821,11 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
               </button>
               <h1 className="text-xl font-bold text-[#4A90E2] dark:text-blue-400 capitalize">
                 {activeTab === "overview" ? (getAuthUser()?.rol === "psicologo" ? "Panel Clínico" : "Panel Administrativo") :
+                 activeTab === "cases" ? "Casos y Alertas" :
                  activeTab === "analytics" ? "Analíticas" :
                  activeTab === "reports" ? "Reportes" :
                  activeTab === "assigned" ? "Pacientes Asignados" :
+                 activeTab === "appointments" ? "Citas Programadas" :
                  activeTab === "users" ? "Gestión de Usuarios" :
                  activeTab === "model" ? "Reentrenar Modelo" :
                  activeTab === "backups" ? "Copias de Seguridad" :
@@ -4189,9 +4874,22 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                                 {n.alerta_suicidio && <span className="material-symbols-outlined text-red-500 text-sm">emergency</span>}
                                 {n.titulo}
                               </p>
+                              {n.id_anonimo && (
+                                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 mt-1">
+                                  {n.id_anonimo}{n.puntaje != null ? ` · PHQ-9 ${n.puntaje}/27` : ""}
+                                </p>
+                              )}
                               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{n.mensaje}</p>
-                              <div className="flex items-center justify-between mt-2">
-                                <span className="text-[11px] text-slate-400">{new Date(n.created_at).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" })}</span>
+                              <div className="flex items-center justify-between mt-2 gap-2">
+                                <span className="text-[11px] text-slate-400">{new Date(n.created_at).toLocaleString("es-PE", { timeZone: "America/Lima", dateStyle: "short", timeStyle: "short" })}</span>
+                                {n.id_anonimo && (
+                                  <button
+                                    onClick={() => { setIsNotificationPanelOpen(false); handleSelectStudentHistory(n.id_anonimo!); }}
+                                    className="text-xs font-semibold text-slate-700 dark:text-slate-200 hover:underline"
+                                  >
+                                    Abrir caso
+                                  </button>
+                                )}
                                 {!n.revisada && (
                                   <button
                                     onClick={() => handleMarkRevisada(n.id_notificacion)}
@@ -4241,9 +4939,11 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
           ) : (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               {activeTab === "overview" && renderOverview()}
+              {activeTab === "cases" && renderCases()}
               {activeTab === "analytics" && renderAnalytics()}
               {activeTab === "reports" && renderReports()}
               {activeTab === "assigned" && renderAssignedPatients()}
+              {activeTab === "appointments" && renderAppointments()}
               {activeTab === "model" && renderModel()}
               {activeTab === "users" && renderUsers()}
               {activeTab === "settings" && renderSettings()}
@@ -4269,6 +4969,9 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
           </div>
         </footer>
       </main>
+
+      {renderCaseActionModal()}
+      {renderRescheduleModal()}
 
       {/* Floating Quick Actions (Mobile) */}
       <button 

@@ -20,7 +20,7 @@ test('responder positivamente el ítem 9 activa automáticamente el protocolo de
 
   await completeQuestionnaire(page, { phq9Item9Label: 'Algunas veces' }, request);
 
-  const banner = page.getByRole('alert');
+  const banner = page.getByTestId('crisis-support');
   await expect(banner).toBeVisible({ timeout: 15_000 });
-  await expect(banner).toContainText('Se ha activado automáticamente el protocolo de riesgo suicida');
+  await expect(banner).toContainText('se pondrá en contacto contigo');
 });

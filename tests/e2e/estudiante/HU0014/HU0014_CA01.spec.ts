@@ -38,7 +38,7 @@ test('tras responder varias preguntas seguidas, el chatbot muestra un mensaje de
   await siguientePasoBtn.click();
   for (let i = 1; i <= 12; i++) {
     await expect(page.getByText(`Pregunta ${i} de 12`)).toBeVisible({ timeout: 10_000 });
-    await page.getByRole('button', { name: 'De acuerdo', exact: true }).click();
+    await page.getByRole('button', { name: 'Algo de acuerdo', exact: true }).click();
   }
   await expect(page.getByText('Pregunta 1 de 9')).toBeVisible({ timeout: 10_000 });
   // 3 respuestas en el PHQ-9 disparan el refuerzo motivacional (contador

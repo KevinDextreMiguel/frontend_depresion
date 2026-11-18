@@ -32,7 +32,7 @@ test('al registrar varias respuestas de forma continua, el chatbot reconoce el p
   await siguientePasoBtn.click();
   for (let i = 1; i <= 3; i++) {
     await expect(page.getByText(`Pregunta ${i} de 12`)).toBeVisible({ timeout: 10_000 });
-    await page.getByRole('button', { name: 'De acuerdo', exact: true }).click();
+    await page.getByRole('button', { name: 'Algo de acuerdo', exact: true }).click();
   }
 
   await page.getByTestId('chatbot-open-button').click();
